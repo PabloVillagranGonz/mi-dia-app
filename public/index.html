@@ -34,5 +34,25 @@
   <body>
     <noscript>Activa JavaScript para usar Mi Día.</noscript>
     <div id="root"></div>
+    <script>
+      // App añadida a la pantalla de inicio (iOS): con la barra de estado translúcida, Safari calcula
+      // la ventana más corta y lo fijado abajo deja un hueco. Ahí la app ocupa la pantalla entera,
+      // así que se usa directamente su alto. En el navegador normal no se toca.
+      (function () {
+        var standalone = window.navigator.standalone === true ||
+          (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+        if (!standalone) return;
+        var root = document.getElementById('root');
+        function fit() {
+          var h = Math.max(window.screen.height, window.screen.width);
+          var w = Math.min(window.screen.height, window.screen.width);
+          root.style.bottom = 'auto';
+          root.style.height = (window.innerWidth > window.innerHeight ? w : h) + 'px';
+        }
+        fit();
+        window.addEventListener('resize', fit);
+        window.addEventListener('orientationchange', fit);
+      })();
+    </script>
   </body>
 </html>
