@@ -1,13 +1,13 @@
 // Piezas de formulario reutilizables (hojas de edición, rutina, ajustes).
 
 import { Ionicons } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Switch, Text, TextInput, View, type TextInputProps } from 'react-native';
 
 import type { HHMM } from '@/data';
-import { fromMinutes, toMinutes } from '@/domain/time';
 import { colors, fonts, radius, spacing } from '@/theme';
+
+import { TimePicker } from './TimePicker';
 
 export function Label({ children }: { children: ReactNode }) {
   return <Text style={styles.label}>{children}</Text>;
@@ -17,10 +17,8 @@ export function Input(props: TextInputProps) {
   return <TextInput placeholderTextColor={colors.textFaint} {...props} style={[styles.input, props.style]} />;
 }
 
-/** Selector de hora 24 h (rueda nativa de iOS en versión compacta). */
+/** Selector de hora 24 h (rueda nativa en iOS, <input type="time"> en la web). */
 export function TimeField({ label, value, onChange, disabled }: { label: string; value: HHMM; onChange: (v: HHMM) => void; disabled?: boolean }) {
-  const mins = toMinutes(value) % (24 * 60); // 24:00 se muestra como 00:00
-  const date = new Date(2000, 0, 1, Math.floor(mins / 60), mins % 60);
   return (
     <View style={styles.timeField}>
       <Label>{label}</Label>
@@ -28,16 +26,7 @@ export function TimeField({ label, value, onChange, disabled }: { label: string;
         {disabled ? (
           <Text style={styles.timeText}>{value}</Text>
         ) : (
-          <DateTimePicker
-            value={date}
-            mode="time"
-            display="compact"
-            locale="es-ES"
-            minuteInterval={5}
-            themeVariant="dark"
-            accentColor={colors.accent}
-            onValueChange={(_e, d) => onChange(fromMinutes(d.getHours() * 60 + d.getMinutes()))}
-          />
+          <TimePicker value={value} onChange={onChange} />
         )}
       </View>
     </View>
@@ -75,7 +64,14 @@ export function SwitchRow({ label, hint, value, onChange }: { label: string; hin
         <Text style={styles.switchLabel}>{label}</Text>
         {hint ? <Text style={styles.switchHint}>{hint}</Text> : null}
       </View>
-      <Switch value={value} onValueChange={onChange} trackColor={{ true: colors.accent, false: colors.border }} />
+      <Switch
+        value={value}
+        onValueChange={onChange}
+        trackColor={{ true: colors.accent, false: colors.border }}
+        thumbColor="#FFFFFF"
+        // Solo react-native-web: sin esto el círculo activo sale verde azulado.
+        {...({ activeThumbColor: '#FFFFFF' } as object)}
+      />
     </View>
   );
 }

@@ -1,7 +1,9 @@
 // Hoja para crear/editar una actividad de la rutina base, y para «Copiar este día a…».
 
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+
+import { Alert } from '@/lib/alert';
 
 import { errorMessage, repo, type ActivityKind, type Category, type HHMM, type TemplateActivity, type Weekday } from '@/data';
 import { crossesMidnight } from '@/domain/midnight';

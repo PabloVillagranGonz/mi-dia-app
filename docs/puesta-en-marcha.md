@@ -111,6 +111,27 @@ No requieren nada en Supabase ni cuenta de Apple: se programan en el propio iPho
 | **Xcode con Apple ID gratis** | 0 € | Compilar en el Mac con Xcode e instalar por cable en el iPhone. | Caduca a los **7 días**: hay que reinstalar desde el Mac cada semana. |
 | **Seguir con Expo Go** | 0 € | `npx expo start --tunnel` | El Mac tiene que estar encendido con el servidor. |
 
+**Decisión (nov 2026): app web instalable (PWA) en Vercel, gratis.** Ver sección 10.
+
 ## 9. Migraciones pendientes de Supabase
 
-- [ ] `supabase/migrations/0002_apply_day_changes.sql` → SQL Editor → Run. Hace que añadir un evento, restaurar un día o aplicar la rutina se guarden en una sola transacción. Comprobar con `npm run check:supabase`.
+- [x] `supabase/migrations/0002_apply_day_changes.sql` → SQL Editor → Run. Hace que añadir un evento, restaurar un día o aplicar la rutina se guarden en una sola transacción. Comprobar con `npm run check:supabase`.
+
+## 10. Versión web (PWA) en Vercel
+
+La misma app se compila para la web (`npx expo export -p web` → `dist/`) y se sirve gratis en Vercel. Cada `git push` a `main` la vuelve a publicar.
+
+**Primera vez (en vercel.com):**
+1. Entrar con GitHub → **Add New… → Project** → importar `mi-dia-app`.
+2. Framework: *Other*. El resto lo lee de `vercel.json` (build `npx expo export -p web`, salida `dist`).
+3. **Environment Variables:** `EXPO_PUBLIC_SUPABASE_URL` y `EXPO_PUBLIC_SUPABASE_KEY` (los mismos valores que `.env.local`).
+4. **Deploy.** Queda en `https://<proyecto>.vercel.app`.
+
+**En el iPhone:** abrir esa URL en **Safari** → Compartir → **Añadir a pantalla de inicio**. Se abre a pantalla completa con su icono. Iniciar sesión una vez.
+
+**Diferencias con la versión nativa:**
+- Las notificaciones aún no funcionan en la web (`src/notifications/index.web.ts` no hace nada). Siguiente paso: Web Push con Supabase Edge Functions + `pg_cron`.
+- Los diálogos de confirmación usan los del navegador (`src/lib/alert.web.ts`).
+- El selector de hora es `<input type="time">` (`src/components/TimePicker.web.tsx`).
+
+**Probar en local:** `npx expo export -p web && npx serve -s dist`.

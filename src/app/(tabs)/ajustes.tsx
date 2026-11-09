@@ -3,7 +3,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+
+import { Alert } from '@/lib/alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ErrorText, Label, SwitchRow, TimeField } from '@/components/form';
@@ -11,7 +13,7 @@ import { auth, errorMessage, repo, usingMockData, type Weekday } from '@/data';
 import { weekdayShort } from '@/domain/time';
 import { useRepoQuery } from '@/hooks/useRepoQuery';
 import { useSession } from '@/hooks/useSession';
-import { scheduledCount, sendTest } from '@/notifications';
+import { notificationsSupported, scheduledCount, sendTest } from '@/notifications';
 import { colors, fonts, radius, spacing } from '@/theme';
 
 const WEEKDAYS: Weekday[] = [1, 2, 3, 4, 5, 6, 7];
@@ -65,10 +67,14 @@ export default function AjustesScreen() {
             value={s?.notifications_enabled ?? true}
             onChange={(v) => update({ notifications_enabled: v })}
           />
-          <Pressable onPress={test} style={styles.testBtn}>
-            <Ionicons name="notifications-outline" size={18} color={colors.accent} />
-            <Text style={styles.testText}>Enviar notificación de prueba</Text>
-          </Pressable>
+          {notificationsSupported ? (
+            <Pressable onPress={test} style={styles.testBtn}>
+              <Ionicons name="notifications-outline" size={18} color={colors.accent} />
+              <Text style={styles.testText}>Enviar notificación de prueba</Text>
+            </Pressable>
+          ) : (
+            <Text style={styles.hint}>En la versión web todavía no llegan avisos. Llegarán pronto.</Text>
+          )}
           {testMsg ? <Text style={styles.hint}>{testMsg}</Text> : null}
         </View>
 

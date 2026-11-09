@@ -1,7 +1,9 @@
 // Hoja para editar una actividad de un día o crear un evento / actividad (spec §5 y §8).
 
 import { useEffect, useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+
+import { Alert } from '@/lib/alert';
 
 import { errorMessage, repo, type ActivityKind, type Category, type DayActivity, type HHMM, type ISODate } from '@/data';
 import { crossesMidnight } from '@/domain/midnight';

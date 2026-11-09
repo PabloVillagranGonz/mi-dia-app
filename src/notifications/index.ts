@@ -11,6 +11,8 @@ import { localNow } from '@/domain/clock';
 import { planActivityNotifications, toExpoWeekday } from '@/domain/notifications';
 import { addDays, toMinutes } from '@/domain/time';
 
+export const notificationsSupported = true;
+
 const PLANNING_ID = 'planning-reminder';
 
 // Mostrar también con la app abierta
