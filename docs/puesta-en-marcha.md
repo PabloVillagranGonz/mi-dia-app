@@ -20,7 +20,6 @@ Cómo está montado Mi Día, cómo se vuelve a montar desde cero y cómo se comp
 | Calidad | ✅ | `typecheck`, `lint`, 125 tests de Jest y 16 tests SQL en verde |
 
 ### Pendiente
-- [ ] Variables `EXPO_PUBLIC_DEMO_EMAIL` y `EXPO_PUBLIC_DEMO_PASSWORD` en Vercel para el botón «Probar la demo» (§3).
 - [ ] Más adelante: compartir cosas con los usuarios desde `/admin`.
 
 ### Descartado
@@ -40,7 +39,7 @@ Cómo está montado Mi Día, cómo se vuelve a montar desde cero y cómo se comp
 | `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_KEY` (públicas) | `.env.local` y Vercel → Environment Variables (tipo *Config*) |
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `CRON_SECRET` | Supabase → Edge Functions → Secrets |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GCAL_STATE_SECRET`, `APP_URL` (y `GCAL_ALLOWED_USER_IDS`, opcional) | Supabase → Edge Functions → Secrets |
-| `DEMO_EMAIL`, `DEMO_PASSWORD` (públicos: cuenta de demostración) | Supabase → Edge Functions → Secrets · y como `EXPO_PUBLIC_DEMO_*` en Vercel |
+| `DEMO_EMAIL`, `DEMO_PASSWORD` (públicos: cuenta de demostración) | Supabase → Edge Functions → Secrets · en la app, por defecto en `src/data/auth.ts` |
 | `push_cron_secret` (mismo valor que `CRON_SECRET`) | Supabase → Vault (lo leen los crons) |
 | Contraseña de la base de datos | Gestor de contraseñas |
 
@@ -118,9 +117,8 @@ on conflict (user_id) do update set is_admin = true;
 
 - **Credenciales públicas:** `demo@example.com` / `midia-demo-2026` (secretos `DEMO_EMAIL` y `DEMO_PASSWORD`). Puede tocar todo lo suyo; no ve Google, ni Administración, ni los avisos al móvil.
 - **Cada noche** (cron `mi-dia-demo-reset`, 04:00 UTC) la función `admin` le restablece los datos de ejemplo, el email y la contraseña, y cierra sus sesiones. También desde el panel: **Restablecer ahora**.
-- **Botón «Probar la demo» en el login:** aparece si la web tiene `EXPO_PUBLIC_DEMO_EMAIL` y `EXPO_PUBLIC_DEMO_PASSWORD`:
-  - [ ] Vercel → `mi-dia-app` → Settings → Environment Variables → añadir las dos (tipo *Config*, mismos valores que los secretos) → Redeploy.
-- **Cambiar las credenciales:** actualizar los secretos de Supabase y las variables de Vercel, y pulsar **Restablecer ahora**.
+- **Botón «Probar la demo» en el login:** entra con esas credenciales (valores por defecto en `src/data/auth.ts`).
+- **Cambiar las credenciales:** actualizar los secretos `DEMO_EMAIL`/`DEMO_PASSWORD` de Supabase y `EXPO_PUBLIC_DEMO_EMAIL`/`EXPO_PUBLIC_DEMO_PASSWORD` en Vercel (o los valores por defecto del código), y pulsar **Restablecer ahora**.
 
 ## 4. App web (PWA) en Vercel
 

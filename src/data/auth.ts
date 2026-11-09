@@ -35,9 +35,13 @@ export async function signIn(email: string, password: string): Promise<void> {
   }
 }
 
-/** Cuenta de demostración pública (portfolio). Si no está configurada, no se ofrece. */
-const DEMO_EMAIL = process.env.EXPO_PUBLIC_DEMO_EMAIL;
-const DEMO_PASSWORD = process.env.EXPO_PUBLIC_DEMO_PASSWORD;
+/**
+ * Cuenta de demostración pública (portfolio). Las credenciales son públicas a propósito (están en
+ * el README) y el servidor las restablece cada noche; deben coincidir con los secretos DEMO_EMAIL y
+ * DEMO_PASSWORD de la Edge Function `admin`. Se pueden cambiar con EXPO_PUBLIC_DEMO_EMAIL/PASSWORD.
+ */
+const DEMO_EMAIL = process.env.EXPO_PUBLIC_DEMO_EMAIL || 'demo@example.com';
+const DEMO_PASSWORD = process.env.EXPO_PUBLIC_DEMO_PASSWORD || 'midia-demo-2026';
 export const demoAvailable = Boolean(supabase && DEMO_EMAIL && DEMO_PASSWORD);
 
 export async function signInDemo(): Promise<void> {
