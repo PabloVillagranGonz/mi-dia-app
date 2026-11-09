@@ -174,3 +174,75 @@ describe('repositorio', () => {
     await expect(repo.deleteWeek(MON)).rejects.toThrow('Solo se pueden borrar semanas futuras.');
   });
 });
+
+describe('repositorio con Google Calendar', () => {
+  const gev = (event_id: string, date: string, start_time: string, end_time: string, calendar_id = 'charanga') => ({
+    calendar_id,
+    event_id,
+    date,
+    start_time,
+    end_time,
+    title: `Ensayo ${event_id}`,
+    updated: '2026-11-01T00:00:00Z',
+  });
+  const cal = (calendar_id: string, enabled: boolean) => ({
+    id: `id-${calendar_id}`,
+    calendar_id,
+    summary: calendar_id,
+    color: null,
+    enabled,
+    category_id: CATEGORY_IDS.musica,
+    kind: 'task' as const,
+    notify: true,
+  });
+
+  function setupGoogle(events: ReturnType<typeof gev>[], today = MON) {
+    const store = createMockStore({ events, calendars: [cal('charanga', true), cal('apagado', false)] });
+    return { store, repo: createRepository(store, () => today) };
+  }
+
+  test('al generar la semana entran los eventos de Google de calendarios activos, recortando la rutina', async () => {
+    const { repo } = setupGoogle([gev('a', TUE, '18:00', '19:00'), gev('b', TUE, '10:00', '11:00', 'apagado')]);
+    await repo.ensureWeek(MON);
+    const day = await repo.getDay(TUE);
+    const g = day.filter((a) => a.external_id);
+    expect(g.map((a) => `${a.start_time}-${a.end_time} ${a.title}`)).toEqual(['18:00-19:00 Ensayo a']);
+    expect(g[0].category_id).toBe(CATEGORY_IDS.musica);
+    expect(day.filter((a) => a.start_time < '19:00' && a.end_time > '18:00')).toHaveLength(1);
+  });
+
+  test('planificar la semana siguiente trae sus eventos de Google ya sincronizados', async () => {
+    const { repo } = setupGoogle([gev('a', NEXT_MON, '18:00', '19:00')]);
+    await repo.planWeek(NEXT_MON, 'base');
+    expect((await repo.getDay(NEXT_MON)).filter((a) => a.external_id)).toHaveLength(1);
+    // Replanificar no lo duplica
+    await repo.planWeek(NEXT_MON, 'copy');
+    expect((await repo.getDay(NEXT_MON)).filter((a) => a.external_id)).toHaveLength(1);
+  });
+
+  test('un evento manual que pisa uno de Google se recorta a su alrededor', async () => {
+    const { repo } = setupGoogle([gev('a', TUE, '18:00', '19:00')]);
+    await repo.ensureWeek(MON);
+    await repo.addEvent(TUE, input('Dentista', '17:30', '19:30'));
+    const ev = (await repo.getDay(TUE)).filter((a) => a.origin === 'event');
+    expect(summary(ev)).toEqual(['17:30-18:00 Dentista', '18:00-19:00 Ensayo a', '19:00-19:30 Dentista']);
+    await expect(repo.addEvent(TUE, input('Tapado', '18:15', '18:45'))).rejects.toThrow('Google Calendar');
+  });
+
+  test('los eventos de Google no se editan ni se borran en la app, pero se marcan y se anotan', async () => {
+    const { repo } = setupGoogle([gev('a', MON, '18:00', '19:00')]);
+    await repo.ensureWeek(MON);
+    const g = (await repo.getDay(MON)).find((a) => a.external_id)!;
+    await expect(repo.updateActivity(g.id, input('Otro', '18:00', '19:00'))).rejects.toThrow('Google Calendar');
+    await expect(repo.deleteActivity(g.id)).rejects.toThrow('Google Calendar');
+    await repo.toggleDone(g.id);
+    await repo.setNote(g.id, 'Traer partituras');
+    expect((await repo.getDay(MON)).find((a) => a.id === g.id)).toMatchObject({ done: true, note: 'Traer partituras' });
+  });
+
+  test('los días pasados no se tocan', async () => {
+    const { repo } = setupGoogle([gev('a', MON, '18:00', '19:00')], TUE);
+    await repo.ensureWeek(MON);
+    expect((await repo.getDay(MON)).filter((a) => a.external_id)).toHaveLength(0);
+  });
+});

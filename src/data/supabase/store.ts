@@ -4,7 +4,11 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { normalizeTime } from '@/domain/time';
 import type { Store } from '../store';
-import type { Category, DayActivity, Settings, TemplateActivity, Week } from '../types';
+import type { GoogleEventRow } from '@/domain/googleEvents';
+import type { Category, DayActivity, GoogleCalendar, Settings, TemplateActivity, Week } from '../types';
+
+/** Columnas que la app puede leer de google_calendars (los tokens no tienen permiso). */
+const CALENDAR_COLUMNS = 'id, calendar_id, summary, color, enabled, category_id, kind, notify';
 
 type Row = Record<string, unknown>;
 
@@ -125,6 +129,24 @@ export function createSupabaseStore(sb: SupabaseClient): Store {
     },
     async updateSettings(patch) {
       check(await sb.from('settings').update(patch).eq('user_id', await userId()));
+    },
+
+    async listGoogleEvents(from, to) {
+      const res = await sb
+        .from('google_events')
+        .select('calendar_id, event_id, date, start_time, end_time, title, updated')
+        .gte('date', from)
+        .lte('date', to);
+      if (res.error?.code === '42P01' || res.error?.code === 'PGRST205') return []; // 0005 aún sin ejecutar
+      return (check(res) as Row[]).map(withTimes) as unknown as GoogleEventRow[];
+    },
+    async listGoogleCalendars() {
+      const res = await sb.from('google_calendars').select(CALENDAR_COLUMNS).order('summary');
+      if (res.error?.code === '42P01' || res.error?.code === 'PGRST205') return [];
+      return check(res) as unknown as GoogleCalendar[];
+    },
+    async updateGoogleCalendar(id, patch) {
+      check(await sb.from('google_calendars').update(patch).eq('id', id));
     },
   };
 }

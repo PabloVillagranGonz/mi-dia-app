@@ -1,4 +1,5 @@
-// Tests de la parte SQL: claim_due_push() (avisos Web Push) frente a la lógica de la app.
+// Tests de la parte SQL: claim_due_push() (avisos Web Push) frente a la lógica de la app,
+// y permisos de las tablas de Google Calendar (0005).
 // Uso:  npm run test:sql
 //
 // Levanta un Postgres embebido (PGlite, sin Docker ni red), carga las migraciones reales
@@ -13,7 +14,7 @@ import { join } from 'node:path';
 import { zonedToInstant } from '../src/domain/clock';
 import { planActivityNotifications } from '../src/domain/notifications';
 
-const MIGRATIONS = ['0001_init.sql', '0002_apply_day_changes.sql', '0003_web_push.sql'];
+const MIGRATIONS = ['0001_init.sql', '0002_apply_day_changes.sql', '0003_web_push.sql', '0005_google_calendar.sql'];
 const USER = '00000000-0000-0000-0000-00000000000a';
 const OTHER = '00000000-0000-0000-0000-00000000000b'; // sin dispositivo suscrito
 const WEEK = '00000000-0000-0000-0000-0000000000f1';
@@ -65,6 +66,9 @@ async function setup(): Promise<PGlite> {
     create table auth.users (id uuid primary key, email text);
     create function auth.uid() returns uuid language sql stable
       as $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
+    grant usage on schema auth to anon, authenticated, service_role;
+    -- Como Supabase: las tablas nuevas de public dan todos los permisos a los tres roles
+    alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
   `);
   for (const f of MIGRATIONS) await db.exec(readFileSync(join('supabase/migrations', f), 'utf8'));
 
@@ -198,6 +202,111 @@ test('la app no puede llamar a claim_due_push (solo la Edge Function)', async ()
              has_function_privilege('service_role', 'public.claim_due_push(timestamptz)', 'execute') as service`)
   ).rows;
   assert.deepEqual(rows[0], { anon: false, auth: false, service: true });
+});
+
+// ── Google Calendar (0005) ─────────────────────────────────────
+
+/** Ejecuta `fn` como un usuario autenticado de la app (rol authenticated + su uid). */
+async function asUser<T>(db: PGlite, uid: string, fn: () => Promise<T>): Promise<T> {
+  await db.exec(`set role authenticated; select set_config('request.jwt.claim.sub', '${uid}', false);`);
+  try {
+    return await fn();
+  } finally {
+    await db.exec(`reset role; select set_config('request.jwt.claim.sub', '', false);`);
+  }
+}
+
+async function failsWith(p: Promise<unknown>, re: RegExp) {
+  await assert.rejects(p, (e: Error) => re.test(e.message));
+}
+
+async function setupGoogle(): Promise<PGlite> {
+  const db = await setup();
+  for (const u of [USER, OTHER]) {
+    await db.query(`insert into public.google_accounts (user_id, google_email, refresh_token) values ($1, 'x@gmail.com', 'secreto')`, [u]);
+    await db.query(
+      `insert into public.google_calendars (user_id, calendar_id, summary, sync_token, channel_id, channel_token)
+       values ($1::uuid, 'cal-' || $1::text, 'Charanga Jaleo', 'tok', 'chan', 'chantok')`,
+      [u],
+    );
+    await db.query(
+      `insert into public.google_events (user_id, calendar_id, event_id, date, start_time, end_time, title, updated)
+       values ($1::uuid, 'cal-' || $1::text, 'ev1', '2026-11-10', '18:00', '19:00', 'Ensayo', now())`,
+      [u],
+    );
+  }
+  return db;
+}
+
+test('google_accounts: la app no puede leer el refresh token', async () => {
+  const db = await setupGoogle();
+  await asUser(db, USER, () => failsWith(db.query(`select * from public.google_accounts`), /permission denied/));
+});
+
+test('google_calendars: lee los suyos sin tokens y solo cambia sus preferencias', async () => {
+  const db = await setupGoogle();
+  await asUser(db, USER, async () => {
+    const rows = (await db.query<{ summary: string }>(`select id, summary, enabled, category_id, kind, notify from public.google_calendars`)).rows;
+    assert.equal(rows.length, 1, 'solo ve su calendario');
+    await failsWith(db.query(`select sync_token from public.google_calendars`), /permission denied/);
+    await failsWith(db.query(`select channel_token from public.google_calendars`), /permission denied/);
+    await failsWith(db.query(`select * from public.google_calendars`), /permission denied/);
+    await db.query(`update public.google_calendars set enabled = true, kind = 'fixed', notify = false`);
+    await failsWith(db.query(`update public.google_calendars set sync_token = 'x'`), /permission denied/);
+    await failsWith(db.query(`update public.google_calendars set user_id = $1`, [OTHER]), /permission denied/);
+    await failsWith(db.query(`insert into public.google_calendars (user_id, calendar_id, summary) values ($1, 'c', 's')`, [USER]), /permission denied/);
+    await failsWith(db.query(`delete from public.google_calendars`), /permission denied/);
+  });
+  const other = await db.query<{ enabled: boolean }>(`select enabled from public.google_calendars where user_id = $1`, [OTHER]);
+  assert.equal(other.rows[0].enabled, false, 'no toca el calendario de otro usuario');
+});
+
+test('google_events: lee los suyos y no puede escribir', async () => {
+  const db = await setupGoogle();
+  await asUser(db, USER, async () => {
+    assert.equal((await db.query(`select * from public.google_events`)).rows.length, 1);
+    await failsWith(db.query(`delete from public.google_events`), /permission denied/);
+    await failsWith(
+      db.query(`insert into public.google_events values ($1, 'c', 'e', '2026-11-10', '10:00', '11:00', 't', now())`, [USER]),
+      /permission denied/,
+    );
+  });
+});
+
+test('apply_day_changes guarda external_id; apply_day_changes_as y el cerrojo son solo del servidor', async () => {
+  const db = await setupGoogle();
+  const insert = JSON.stringify([
+    { week_id: WEEK, date: '2026-11-10', start_time: '18:00', end_time: '19:00', title: 'Ensayo', category_id: null, kind: 'task',
+      origin: 'event', template_activity_id: null, split_group_id: null, notify: true, edited: false, done: false, done_at: null,
+      note: null, external_id: 'gcal:cal:ev1' },
+  ]);
+  const rows = await asUser(db, USER, async () => {
+    await failsWith(db.query(`select public.apply_day_changes_as($1, '{}', '[]', '[]')`, [USER]), /permission denied/);
+    await failsWith(db.query(`select public.gcal_lock($1)`, [USER]), /permission denied/);
+    return (await db.query<{ external_id: string }>(`select * from public.apply_day_changes('{}', '[]', $1::jsonb)`, [insert])).rows;
+  });
+  assert.equal(rows[0].external_id, 'gcal:cal:ev1');
+
+  const priv = (fn: string) => db.query<{ ok: boolean }>(`select has_function_privilege('service_role', '${fn}', 'execute') as ok`);
+  assert.equal((await priv('public.apply_day_changes_as(uuid, uuid[], jsonb, jsonb)')).rows[0].ok, true);
+
+  // Desde el servidor (sin RLS) con el usuario explícito
+  const mine = (await db.query<{ user_id: string }>(`select * from public.apply_day_changes_as($1, '{}', '[]', $2::jsonb)`, [OTHER, insert])).rows;
+  assert.equal(mine[0].user_id, OTHER);
+});
+
+test('cerrojo de sincronización: uno a la vez y repetir si llegó otro aviso', async () => {
+  const db = await setupGoogle();
+  const lock = async () => (await db.query<{ ok: boolean }>(`select public.gcal_lock($1) as ok`, [USER])).rows[0].ok;
+  const unlock = async () => (await db.query<{ again: boolean }>(`select public.gcal_unlock($1) as again`, [USER])).rows[0].again;
+  assert.equal(await lock(), true);
+  assert.equal(await lock(), false, 'el segundo no entra…');
+  assert.equal(await unlock(), true, '…pero deja apuntado que hay que repetir');
+  assert.equal(await lock(), true);
+  assert.equal(await unlock(), false);
+  // Un cerrojo caducado (función colgada) no bloquea para siempre
+  await db.query(`update public.google_accounts set sync_lock_until = now() - interval '1 second' where user_id = $1`, [USER]);
+  assert.equal(await lock(), true);
 });
 
 (async () => {

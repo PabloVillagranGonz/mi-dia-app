@@ -74,12 +74,13 @@ export function TimelineBlock({ activity: a, category, isNow, isPast, canCheck, 
             <Text style={[styles.title, dim && styles.titleDone]} numberOfLines={2}>
               {a.title}
             </Text>
+            {a.external_id ? <Ionicons name="logo-google" size={12} color={colors.textMuted} accessibilityLabel="Google Calendar" /> : null}
             {isNow ? <Text style={styles.nowTag}>AHORA</Text> : null}
           </View>
           <Text style={[styles.meta, dim && { color: colors.textFaint }]} numberOfLines={1}>
             {category?.name ?? 'Sin categoría'} · {a.start_time}–{a.end_time}
             {a.kind === 'fixed' ? ' · fija' : ''}
-            {a.origin === 'event' ? ' · evento' : ''}
+            {a.origin === 'event' && !a.external_id ? ' · evento' : ''}
           </Text>
           {a.note ? (
             <Text style={styles.note} numberOfLines={2}>

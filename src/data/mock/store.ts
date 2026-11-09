@@ -2,11 +2,20 @@
 
 import { uuid } from '@/lib/uuid';
 import type { Store } from '../store';
-import type { Category, DayActivity, Settings, TemplateActivity, Week } from '../types';
+import type { GoogleEventRow } from '@/domain/googleEvents';
+import type { Category, DayActivity, GoogleCalendar, Settings, TemplateActivity, Week } from '../types';
 import { MOCK_USER_ID, seedCategories, seedTemplates } from './seed';
 
-export function createMockStore(): Store {
+export interface MockGoogle {
+  events?: GoogleEventRow[];
+  calendars?: GoogleCalendar[];
+}
+
+/** `google`: eventos y calendarios de Google simulados (para tests). Por defecto, ninguno. */
+export function createMockStore(google: MockGoogle = {}): Store {
   const db = {
+    googleEvents: [...(google.events ?? [])],
+    googleCalendars: [...(google.calendars ?? [])],
     categories: seedCategories.map((c) => ({ ...c })) as Category[],
     templates: seedTemplates.map((t) => ({ ...t })) as TemplateActivity[],
     weeks: [] as Week[],
@@ -113,6 +122,16 @@ export function createMockStore(): Store {
     },
     async updateSettings(patch) {
       db.settings = { ...db.settings, ...patch };
+    },
+
+    async listGoogleEvents(from, to) {
+      return clone(db.googleEvents.filter((e) => e.date >= from && e.date <= to));
+    },
+    async listGoogleCalendars() {
+      return clone(db.googleCalendars);
+    },
+    async updateGoogleCalendar(id, patch) {
+      db.googleCalendars = db.googleCalendars.map((c) => (c.id === id ? { ...c, ...patch } : c));
     },
   };
 }

@@ -1,8 +1,9 @@
 // Operaciones básicas de lectura/escritura. Dos implementaciones:
 // mock/store.ts (memoria) y supabase/store.ts. Las reglas de negocio viven en repository.ts.
 
+import type { GoogleEventRow } from '@/domain/googleEvents';
 import type { DayActivityDraft } from '@/domain/week';
-import type { Category, DayActivity, ISODate, Settings, TemplateActivity, Week, WeekSource } from './types';
+import type { Category, DayActivity, GoogleCalendar, ISODate, Settings, TemplateActivity, Week, WeekSource } from './types';
 
 export type NewCategory = Omit<Category, 'id' | 'user_id'>;
 export type NewTemplate = Omit<TemplateActivity, 'id' | 'user_id'>;
@@ -10,13 +11,14 @@ export type NewDayActivity = DayActivityDraft & { week_id: string };
 
 export interface DayChanges {
   delete: string[];
-  update: Array<{ id: string; start_time: string; end_time: string }>;
+  update: { id: string; start_time: string; end_time: string }[];
   insert: NewDayActivity[];
 }
 
 export type DayActivityPatch = Partial<Omit<DayActivity, 'id' | 'user_id'>>;
 export type TemplatePatch = Partial<Omit<TemplateActivity, 'id' | 'user_id'>>;
 export type SettingsPatch = Partial<Omit<Settings, 'user_id'>>;
+export type GoogleCalendarPatch = Partial<Pick<GoogleCalendar, 'enabled' | 'category_id' | 'kind' | 'notify'>>;
 
 export interface Store {
   listCategories(): Promise<Category[]>;
@@ -47,4 +49,9 @@ export interface Store {
 
   getSettings(): Promise<Settings>;
   updateSettings(patch: SettingsPatch): Promise<void>;
+
+  /** Google Calendar (solo lectura: los escribe el servidor). Fechas inclusivas. */
+  listGoogleEvents(from: ISODate, to: ISODate): Promise<GoogleEventRow[]>;
+  listGoogleCalendars(): Promise<GoogleCalendar[]>;
+  updateGoogleCalendar(id: string, patch: GoogleCalendarPatch): Promise<void>;
 }

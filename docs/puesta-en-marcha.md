@@ -24,7 +24,7 @@ Pasos en orden. Lo hecho está tachado; lo descartado se queda como histórico.
 - ~~Segundo usuario dado de alta con su propia rutina~~ (§12)
 
 ### Pendiente
-- [ ] **Sincronización con Google Calendar** (Fase 2; empezar con `/spec`)
+- [ ] **Google Calendar** (§13): código hecho; falta Google Cloud (publicar app + cliente OAuth) y desplegar
 - [ ] **Panel `/admin`** para ti: estadísticas y compartir cosas con los usuarios (más adelante)
 
 ### Descartado / solo para desarrollo
@@ -167,3 +167,32 @@ El registro está cerrado: cada usuario se crea a mano y tiene **sus propios dat
 **Rutina propia desde el principio** (en vez de la de ejemplo): crear el usuario, sustituir sus filas de `template_activities` por SQL antes de que entre (si ya entró y no ha marcado nada, borrar sus `weeks` para que la app las regenere).
 
 > La app aún no tiene «cambiar contraseña». Si la quiere cambiar: **Authentication → Users → ⋯ → Reset password** o se añade la opción en Ajustes.
+
+## 13. Google Calendar → Mi Día (issue #1)
+
+```
+Google ──aviso──> gcal-webhook ─┐
+pg_cron cada 15 min ──> gcal-sync ─┼─> google_events ─> rebuildDay ─> day_activities ─(Realtime)─> app
+Ajustes ──> gcal-oauth (conectar / estado / desconectar)
+```
+
+Solo para los usuarios de `GCAL_ALLOWED_USER_IDS`; al resto no les aparece la sección en Ajustes.
+
+**Google Cloud** (proyecto «Mi Dia», `mi-dia-514216`):
+1. [x] ~~API de Google Calendar activada.~~
+2. [x] ~~Pantalla de permisos: externa, dominio `mi-dia-app-seven.vercel.app`, privacidad `/privacidad.html`, permisos `calendar.readonly` y email.~~
+3. [ ] **Público → Publicar app** (en «Prueba» Google corta la conexión cada 7 días). Sin verificar sale un aviso al conectar: «Google no ha verificado esta app» → Configuración avanzada → Ir a Mi Día.
+4. [ ] **Clientes → Crear cliente → Aplicación web**. URI de redirección: `https://mi-dia-app-seven.vercel.app/api/gcal/callback` (Vercel la reenvía a la función `gcal-oauth`). Descargar el JSON (no pegar el secreto en ningún chat).
+
+**Supabase:**
+5. [ ] Ejecutar `0005_google_calendar.sql`.
+6. [ ] Secretos (Edge Functions → Secrets): `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` (del JSON), `GCAL_STATE_SECRET` (`openssl rand -base64 32`), `GCAL_ALLOWED_USER_IDS` (tu `user_id`), `APP_URL` = `https://mi-dia-app-seven.vercel.app`. `CRON_SECRET` ya está (el de `push`).
+7. [ ] Desplegar: `for f in gcal-oauth gcal-sync gcal-webhook; do npx supabase functions deploy $f --remote=bnqxmgtpqwhaztvpneyx --no-verify-jwt --use-api; done`
+8. [ ] Ejecutar `0006_gcal_cron.sql` (usa el `push_cron_secret` de Vault).
+9. [ ] En el iPhone: Ajustes → Google Calendar → **Conectar con Google**. Comprobar que «Charanga Jaleo» (Música) y «Running» (Salud) salen activos.
+
+**Comprobar:** crear un evento hoy en Google → aparece en ≤ 30 s. Moverlo → la rutina vuelve en el hueco. Logs: Supabase → Edge Functions → `gcal-sync` / `gcal-webhook` → Logs.
+
+**Si se cambia algo de `src/domain/`:** `npm run build:functions` y volver a desplegar las tres funciones (`npm test` avisa si el paquete está desactualizado).
+
+**Quitarlo:** Ajustes → Desconectar; `select cron.unschedule('mi-dia-gcal-sync');`. La migración es aditiva (`external_id` admite nulos).

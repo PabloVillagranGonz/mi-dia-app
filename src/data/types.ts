@@ -59,6 +59,8 @@ export interface DayActivity {
   done: boolean;
   done_at: string | null;
   note: string | null;
+  /** Evento traído de Google Calendar: 'gcal:<calendar_id>:<event_id>'. Solo lectura en la app. */
+  external_id: string | null;
 }
 
 export interface Settings {
@@ -67,4 +69,16 @@ export interface Settings {
   planning_reminder_time: HHMM;
   notifications_enabled: boolean;
   timezone: string;
+}
+
+/** Calendario de Google del usuario (tabla google_calendars, sin tokens). */
+export interface GoogleCalendar {
+  id: UUID;
+  calendar_id: string;
+  summary: string;
+  color: string | null;
+  enabled: boolean;
+  category_id: UUID | null;
+  kind: ActivityKind;
+  notify: boolean;
 }

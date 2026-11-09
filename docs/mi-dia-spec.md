@@ -152,6 +152,16 @@ Al añadir un evento (`origin = 'event'`) en un día:
 4. Dos eventos no pueden solaparse entre sí (validación).
 Al borrar un evento, el hueco se queda como «Tiempo libre» (no se restaura la rutina). La UI ofrece «Restaurar rutina de este día».
 
+### 4.2 bis Eventos de Google Calendar (issue #1, solo administrador)
+- **Solo Google → Mi Día.** Calendarios elegidos en Ajustes (cada uno con su categoría); `kind = 'task'`, `notify = true`. Ventana: semana actual + siguiente. Los de todo el día no se traen.
+- Se guardan en `google_events` (una fila por evento y día) y se materializan en `day_activities` como `origin = 'event'` con `external_id = 'gcal:<calendario>:<evento>'`. En la app son de solo lectura: solo «hecha» y nota.
+- **Siempre gana Google:** recorta la rutina, los eventos manuales y las actividades sueltas. Entre dos de Google gana el que empieza antes. Un evento manual que pisa uno de Google se recorta a su alrededor.
+- **Mover o borrar en Google** rellena con la rutina base **solo** el tramo que deja libre (lo que se borró a mano ese día fuera de ese tramo no vuelve). La fila del evento conserva hecho y nota si se mueve dentro del mismo día.
+- **Rapidez:** Google avisa a `gcal-webhook` (≤ 30 s, la app abierta se refresca por Realtime). Respaldo: `gcal-sync` cada 15 min, que también renueva los canales y hace el sync completo al cambiar de semana.
+- Una semana que aún no existe recibe sus eventos de Google al generarse (`ensureWeek`/`planWeek`). Los días pasados no se tocan.
+- **Desconectar:** revoca el permiso, borra `google_*` y restaura la rutina de hoy en adelante.
+- Lógica pura: `src/domain/googleEvents.ts` (`toDayPieces`, `planEventsSync`) y `src/domain/rebuildDay.ts`, empaquetada para las Edge Functions con `npm run build:functions`.
+
 ### 4.3 Editar la rutina base
 - Validación de solapes dentro del mismo `weekday`.
 - Si `end_time < start_time` → se parte en dos filas (día N y día N+1, con domingo → lunes) y se les asigna un `split_group_id`. Editar o borrar una mitad afecta a las dos.
@@ -283,7 +293,7 @@ Las capturas están en `docs/diseno/`:
 ---
 
 ## 9. Fuera de la Fase 1
-- Sincronización con Google Calendar.
+- ~~Sincronización con Google Calendar~~ → hecha (§4.2 bis, issue #1).
 - Modo offline completo con escritura.
 - Estadísticas históricas (rachas, horas por categoría), en un panel **`/admin`** solo para el administrador, desde el que también se podrán compartir cosas con los usuarios (más adelante).
 - Varios usuarios: cada uno con sus datos (RLS); se dan de alta a mano en Supabase (registro cerrado).

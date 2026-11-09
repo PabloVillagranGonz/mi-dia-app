@@ -15,6 +15,7 @@ import { View } from 'react-native';
 
 import { WebSafeArea } from '@/components/WebSafeArea';
 import { useEnsureCurrentWeek } from '@/hooks/useEnsureCurrentWeek';
+import { useRemoteChanges } from '@/hooks/useRemoteChanges';
 import { useSession } from '@/hooks/useSession';
 import { useNotifications } from '@/notifications';
 import { colors } from '@/theme';
@@ -31,6 +32,7 @@ export default function RootLayout() {
   const session = useSession();
   const loggedIn = !!session;
   useEnsureCurrentWeek(loggedIn);
+  useRemoteChanges(loggedIn);
   useNotifications(loggedIn && fontsLoaded);
 
   if (!fontsLoaded || session === undefined) {

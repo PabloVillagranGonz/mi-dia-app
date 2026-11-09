@@ -1,4 +1,4 @@
-// Ajustes (spec §5): recordatorio dominical, notificaciones, categorías y cerrar sesión.
+// Ajustes (spec §5): recordatorio dominical, notificaciones, Google Calendar, categorías y cerrar sesión.
 
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -13,6 +13,7 @@ import { auth, errorMessage, repo, usingMockData, type Weekday } from '@/data';
 import { weekdayShort } from '@/domain/time';
 import { useRepoQuery } from '@/hooks/useRepoQuery';
 import { useSession } from '@/hooks/useSession';
+import { GoogleCalendarSettings } from '@/components/GoogleCalendarSettings';
 import { WebPushSettings } from '@/components/WebPushSettings';
 import { notificationsSupported, scheduledCount, sendTest } from '@/notifications';
 import { colors, fonts, radius, spacing } from '@/theme';
@@ -99,6 +100,8 @@ export default function AjustesScreen() {
           ) : null}
           <Text style={styles.hint}>«Planifica tu semana». Al tocarlo se abre el asistente.</Text>
         </View>
+
+        <GoogleCalendarSettings />
 
         <Text style={styles.section}>RUTINA</Text>
         <Pressable style={[styles.card, styles.link]} onPress={() => router.push('/categorias')}>

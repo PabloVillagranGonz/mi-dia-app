@@ -2,9 +2,10 @@
 // sobre un Store (mock o Supabase) y avisa de los cambios para que las vistas se refresquen.
 
 import { localNow } from '@/domain/clock';
-import { planEvent } from '@/domain/events';
-import type { Slot } from '@/domain/intervals';
+import { applyEventPlan, planEvent } from '@/domain/events';
+import { fromRange, subtractRanges, toRange, type Slot } from '@/domain/intervals';
 import { splitAtMidnight } from '@/domain/midnight';
+import { googleRangesOf, rebuildDay } from '@/domain/rebuildDay';
 import { copyDayRows, linkedIds, templateConflicts, templateRows } from '@/domain/template';
 import { addDays, compareDates, weekDates, weekStartOf } from '@/domain/time';
 import { validateNoOverlap, validationMessage } from '@/domain/validation';
@@ -58,6 +59,46 @@ export function createRepository(store: Store, today: () => ISODate = () => loca
     throw new UserError(validationMessage({ ok: false, reason: 'overlap', conflicts }) ?? 'Se solapa con otra actividad.');
   }
 
+  function rejectGoogle(a: DayActivity) {
+    if (a.external_id) throw new UserError('Este evento viene de Google Calendar: cámbialo allí.');
+  }
+
+  // ── Google Calendar ───────────────────────────────────────────
+
+  /**
+   * Pone en esos días los eventos de Google ya sincronizados (y quita los que sobren),
+   * recortando lo demás a su alrededor. Solo de hoy en adelante. Si falla (sin conexión,
+   * migración sin ejecutar…), no rompe nada: el servidor lo hará en la siguiente sincronización.
+   */
+  async function materializeGoogle(dates: readonly ISODate[]): Promise<void> {
+    const target = dates.filter((d) => compareDates(d, today()) >= 0);
+    if (!target.length) return;
+    const from = target[0];
+    const to = target[target.length - 1];
+    try {
+      const [calendars, events, acts] = await Promise.all([
+        store.listGoogleCalendars(),
+        store.listGoogleEvents(addDays(from, -1), addDays(to, 1)),
+        store.listDayActivities(from, to),
+      ]);
+      if (!events.length && !acts.some((a) => a.external_id)) return;
+      const templates = await store.listTemplates();
+      const enabled = calendars.filter((c) => c.enabled);
+      const changes: DayChanges = { delete: [], update: [], insert: [] };
+      for (const date of target) {
+        const weekId = acts.find((a) => a.date === date)?.week_id ?? (await store.getWeek(weekStartOf(date)))?.id;
+        if (!weekId) continue;
+        const c = rebuildDay({ date, weekId, templates, existing: acts, googleEvents: events, calendars: enabled });
+        changes.delete.push(...c.delete);
+        changes.update.push(...c.update);
+        changes.insert.push(...c.insert);
+      }
+      if (changes.delete.length || changes.update.length || changes.insert.length) await store.applyDayChanges(changes);
+    } catch (e) {
+      console.warn('No se pudieron poner los eventos de Google', e);
+    }
+  }
+
   // ── Semanas ───────────────────────────────────────────────────
 
   /** Devuelve la semana; si no existe la genera desde la rutina base. */
@@ -70,6 +111,7 @@ export function createRepository(store: Store, today: () => ISODate = () => loca
     const already = await store.listDayActivities(weekStart, addDays(weekStart, 6));
     if (already.length === 0) {
       await store.insertDayActivities(generateFromTemplate(weekStart, templates).map((d) => ({ ...d, week_id: week.id })));
+      await materializeGoogle(weekDates(weekStart));
     }
     changed();
     return week;
@@ -111,6 +153,7 @@ export function createRepository(store: Store, today: () => ISODate = () => loca
       insert: trimmed.map((d) => ({ ...d, week_id: week.id })),
     });
     await store.updateWeek(week.id, { source: mode });
+    await materializeGoogle(weekDates(weekStart));
     changed();
   }
 
@@ -202,6 +245,7 @@ export function createRepository(store: Store, today: () => ISODate = () => loca
       done: false,
       done_at: null,
       note: null,
+      external_id: null,
     };
   }
 
@@ -224,28 +268,33 @@ export function createRepository(store: Store, today: () => ISODate = () => loca
     requireTitle(input.title);
     if (compareDates(date, today()) < 0) throw new UserError('Los días pasados son de solo lectura.');
     const { pieces, dayLists } = await piecesFor(date, input);
-
-    // Validar todos los trozos antes de escribir nada
-    const plans = pieces.map((p) => {
-      const r = planEvent(dayLists.filter((a) => a.date === p.date), p);
-      if (!r.ok) overlapError(r.conflicts as unknown as DayActivity[]);
-      return { piece: p, plan: r.plan };
-    });
-
     const group = pieces.length > 1 ? uuid() : null;
-    const changes: DayChanges = { delete: [], update: [], insert: [] };
-    for (const { piece, plan } of plans) {
-      const weekId = await weekIdFor(piece.date);
-      changes.delete.push(...plan.toDelete);
-      changes.update.push(...plan.toUpdate);
-      for (const p of plan.toInsert) {
-        const { user_id: _u, ...draft } = p as unknown as DayActivity;
-        changes.insert.push({ ...draft, week_id: weekId });
-      }
-      changes.insert.push({ ...draftOf(input, piece.date, piece, 'event', group), week_id: weekId });
+
+    // Los eventos de Google mandan: el evento manual se recorta a su alrededor
+    const google = dayLists.filter((a) => a.external_id);
+    const slots = pieces.flatMap((p) =>
+      subtractRanges(toRange(p), googleRangesOf(google.filter((g) => g.date === p.date))).map((r) => ({
+        date: p.date,
+        ...fromRange(r),
+      })),
+    );
+    if (!slots.length) throw new UserError('A esa hora ya hay un evento de Google Calendar.');
+
+    // Validar y aplicar en memoria todos los trozos antes de escribir nada
+    const original = dayLists.filter((a) => !a.external_id);
+    let state: DayActivity[] = original;
+    let tmp = 0;
+    const newId = () => `tmp:${++tmp}`;
+    for (const slot of slots) {
+      const r = planEvent(state.filter((a) => a.date === slot.date), slot);
+      if (!r.ok) overlapError(r.conflicts);
+      const weekId = await weekIdFor(slot.date);
+      state = applyEventPlan(state, r.plan, newId);
+      state.push({ ...draftOf(input, slot.date, slot, 'event', group), week_id: weekId, id: newId(), user_id: '' });
     }
+
     // Todo en una transacción: si falla, el día no queda a medias
-    await store.applyDayChanges(changes);
+    await store.applyDayChanges(diffDay(original, state));
     changed();
   }
 
@@ -258,6 +307,7 @@ export function createRepository(store: Store, today: () => ISODate = () => loca
     const a = await store.getDayActivity(id);
     if (!a) return;
     if (compareDates(a.date, today()) < 0) throw new UserError('Los días pasados son de solo lectura.');
+    rejectGoogle(a);
 
     const { pieces, dayLists } = await piecesFor(a.date, input);
     const own = linkedIds(a, dayLists);
@@ -297,6 +347,7 @@ export function createRepository(store: Store, today: () => ISODate = () => loca
     const a = await store.getDayActivity(id);
     if (!a) return;
     if (compareDates(a.date, today()) < 0) throw new UserError('Los días pasados son de solo lectura.');
+    rejectGoogle(a);
     const around = await store.listDayActivities(addDays(a.date, -1), addDays(a.date, 1));
     await store.deleteDayActivities(linkedIds(a, around));
     changed();
@@ -427,6 +478,8 @@ export function createRepository(store: Store, today: () => ISODate = () => loca
         listeners.delete(l);
       };
     },
+    /** Avisa a las vistas de que algo cambió fuera de la app (p. ej. el servidor sincronizó Google). */
+    refresh: changed,
     // semanas
     ensureWeek,
     getWeek: (weekStart: ISODate) => store.getWeek(weekStart),
@@ -458,3 +511,20 @@ export function createRepository(store: Store, today: () => ISODate = () => loca
 }
 
 export type Repository = ReturnType<typeof createRepository>;
+
+/** Cambios para pasar de `original` a `final` (filas nuevas: id que empieza por 'tmp:'). */
+function diffDay(original: readonly DayActivity[], final: readonly DayActivity[]): DayChanges {
+  const byId = new Map(original.map((a) => [a.id, a]));
+  const finalIds = new Set(final.map((a) => a.id));
+  const changes: DayChanges = { delete: original.filter((a) => !finalIds.has(a.id)).map((a) => a.id), update: [], insert: [] };
+  for (const a of final) {
+    const o = byId.get(a.id);
+    if (!o) {
+      const { id: _id, user_id: _u, ...draft } = a;
+      changes.insert.push(draft);
+    } else if (o.start_time !== a.start_time || o.end_time !== a.end_time) {
+      changes.update.push({ id: a.id, start_time: a.start_time, end_time: a.end_time });
+    }
+  }
+  return changes;
+}

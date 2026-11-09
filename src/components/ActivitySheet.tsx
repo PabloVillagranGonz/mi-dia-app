@@ -1,5 +1,6 @@
 // Hoja para editar una actividad de un día o crear un evento / actividad (spec §5 y §8).
 
+import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -26,8 +27,11 @@ interface Props {
   onClose: () => void;
 }
 
-export function ActivitySheet({ target, categories, canCheck, readOnly = false, onClose }: Props) {
+export function ActivitySheet({ target, categories, canCheck, readOnly: pastDay = false, onClose }: Props) {
   const editing = target?.mode === 'edit' ? target.activity : null;
+  // Los eventos de Google Calendar solo se cambian en Google: aquí, hecho y nota
+  const fromGoogle = Boolean(editing?.external_id);
+  const readOnly = pastDay || fromGoogle;
   const defaultCategory = categories.find((c) => c.name === 'Personal')?.id ?? categories[0]?.id ?? null;
 
   const [title, setTitle] = useState('');
@@ -98,7 +102,7 @@ export function ActivitySheet({ target, categories, canCheck, readOnly = false, 
         a.category_id !== categoryId ||
         a.kind !== kind ||
         a.notify !== notify;
-      if (changed) await repo.updateActivity(a.id, input);
+      if (changed && !fromGoogle) await repo.updateActivity(a.id, input);
       if ((a.note ?? '') !== note.trim()) await repo.setNote(a.id, note);
     });
   }
@@ -116,7 +120,7 @@ export function ActivitySheet({ target, categories, canCheck, readOnly = false, 
     ]);
   }
 
-  const title_ = target?.mode === 'create' ? 'Añadir al día' : readOnly ? 'Actividad' : 'Editar actividad';
+  const title_ = target?.mode === 'create' ? 'Añadir al día' : fromGoogle ? 'Evento de Google' : readOnly ? 'Actividad' : 'Editar actividad';
   const splits = (() => {
     try {
       return crossesMidnight(start, end);
@@ -142,6 +146,13 @@ export function ActivitySheet({ target, categories, canCheck, readOnly = false, 
               ? 'Un evento (ensayo, bolo, cita…) recorta o sustituye lo que pise de la rutina.'
               : 'Una actividad suelta para este día. No puede solaparse con otras.'}
           </Text>
+        </View>
+      ) : null}
+
+      {fromGoogle ? (
+        <View style={styles.google}>
+          <Ionicons name="logo-google" size={14} color={colors.textMuted} />
+          <Text style={styles.googleText}>Viene de Google Calendar. Para cambiarlo o borrarlo, hazlo allí.</Text>
         </View>
       ) : null}
 
@@ -186,7 +197,7 @@ export function ActivitySheet({ target, categories, canCheck, readOnly = false, 
           <Input
             value={note}
             onChangeText={setNote}
-            editable={!readOnly}
+            editable={!pastDay}
             placeholder="Nota para hoy…"
             multiline
             style={styles.note}
@@ -195,6 +206,12 @@ export function ActivitySheet({ target, categories, canCheck, readOnly = false, 
       ) : null}
 
       <ErrorText>{error}</ErrorText>
+
+      {fromGoogle && !pastDay ? (
+        <View style={styles.actions}>
+          <PrimaryButton title="Guardar nota" onPress={save} disabled={busy} />
+        </View>
+      ) : null}
 
       {!readOnly ? (
         <View style={styles.actions}>
@@ -212,4 +229,6 @@ const styles = StyleSheet.create({
   hint: { color: colors.textFaint, fontFamily: fonts.regular, fontSize: 12, marginTop: spacing.xs },
   note: { minHeight: 80, textAlignVertical: 'top' },
   actions: { gap: spacing.xs, marginTop: spacing.sm },
+  google: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  googleText: { flex: 1, color: colors.textMuted, fontFamily: fonts.regular, fontSize: 13 },
 });

@@ -25,6 +25,7 @@ function draftFromTemplate(t: TemplateActivity, date: ISODate): DayActivityDraft
     done: false,
     done_at: null,
     note: null,
+    external_id: null,
   };
 }
 
