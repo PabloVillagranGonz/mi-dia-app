@@ -13,6 +13,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
 
+import { DialogHost } from '@/components/DialogHost';
 import { WebSafeArea } from '@/components/WebSafeArea';
 import { useEnsureCurrentWeek } from '@/hooks/useEnsureCurrentWeek';
 import { useMyFlagsState } from '@/hooks/useMyFlags';
@@ -66,6 +67,7 @@ export default function RootLayout() {
           <Stack.Screen name="login" />
         </Stack.Protected>
       </Stack>
+      <DialogHost />
     </WebSafeArea>
   );
 }

@@ -136,7 +136,7 @@ on conflict (user_id) do update set is_admin = true;
 - **En el iPhone:** Safari → Compartir → **Añadir a pantalla de inicio** → iniciar sesión una vez. Si cambia el icono, hay que borrarla y volver a añadirla.
 - **Actualizaciones:** la versión nueva se descarga sola la siguiente vez que se abre con conexión. Si se quiere ya: cerrarla del todo y abrirla.
 - **Sin conexión:** el service worker (`public/sw.js`) guarda la app; `scripts/build-sw.mjs` le mete la versión y la lista de archivos en cada build. Las lecturas de hoy y de la semana se guardan en el dispositivo.
-- **Variantes web** (`*.web.ts(x)`): diálogos del navegador, `<input type="time">`, márgenes del notch por CSS, avisos por Web Push.
+- **Variantes web** (`*.web.ts(x)`): diálogos propios de la app (`src/lib/alert.web.ts` → `DialogHost`, nunca los del navegador), `<input type="time">`, márgenes del notch por CSS, avisos por Web Push.
 - **Probar el build en local:** `npx expo export -p web && node scripts/build-sw.mjs && npx serve -s dist`.
 
 ---
