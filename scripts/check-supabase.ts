@@ -64,7 +64,7 @@ async function main() {
     fail(`No se pudo entrar: ${error?.message ?? 'sin sesión'}`);
     process.exit(1);
   }
-  ok(`Sesión iniciada como ${login.user.email}`);
+  ok(`Sesión iniciada como ${login.user?.email}`);
 
   const store = createSupabaseStore(sb);
   const repo = createRepository(store);
