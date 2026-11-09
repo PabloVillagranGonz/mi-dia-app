@@ -2,14 +2,14 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Alert } from '@/lib/alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CategoryDot } from '@/components/CategoryChip';
-import { ErrorText, Input, Label, PrimaryButton, TextButton } from '@/components/form';
+import { ErrorText, Input, Label, PrimaryButton } from '@/components/form';
 import { Sheet } from '@/components/Sheet';
 import { errorMessage, repo, type Category } from '@/data';
 import { useCategories } from '@/hooks/useCategories';
@@ -86,7 +86,10 @@ function CategorySheet({ target, nextOrder, onClose }: { target: Target | null; 
   const [color, setColor] = useState(PALETTE[0]);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  // Rellenar el formulario al abrir (durante el render, sin efecto)
+  const [prevTarget, setPrevTarget] = useState<Target | null>(null);
+  if (target !== prevTarget) {
+    setPrevTarget(target);
     setError(null);
     if (target?.mode === 'edit') {
       setName(target.category.name);
@@ -95,8 +98,7 @@ function CategorySheet({ target, nextOrder, onClose }: { target: Target | null; 
       setName('');
       setColor(PALETTE[nextOrder % PALETTE.length]);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [target]);
+  }
 
   async function save() {
     if (!target) return;
@@ -133,7 +135,18 @@ function CategorySheet({ target, nextOrder, onClose }: { target: Target | null; 
   }
 
   return (
-    <Sheet visible={!!target} title={target?.mode === 'edit' ? 'Editar categoría' : 'Nueva categoría'} onClose={onClose}>
+    <Sheet
+      visible={!!target}
+      title={target?.mode === 'edit' ? 'Editar categoría' : 'Nueva categoría'}
+      onClose={onClose}
+      headerAction={
+        target?.mode === 'edit' ? (
+          <Pressable onPress={remove} hitSlop={12} accessibilityLabel="Eliminar">
+            <Ionicons name="trash-outline" size={22} color={colors.danger} />
+          </Pressable>
+        ) : null
+      }
+    >
       <View>
         <Label>Nombre</Label>
         <Input value={name} onChangeText={setName} placeholder="Música, Familia…" />
@@ -150,7 +163,6 @@ function CategorySheet({ target, nextOrder, onClose }: { target: Target | null; 
       </View>
       <ErrorText>{error}</ErrorText>
       <PrimaryButton title={target?.mode === 'edit' ? 'Guardar cambios' : 'Crear categoría'} onPress={save} />
-      {target?.mode === 'edit' ? <TextButton title="Eliminar" color={colors.danger} onPress={remove} /> : null}
     </Sheet>
   );
 }

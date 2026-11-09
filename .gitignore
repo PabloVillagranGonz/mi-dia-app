@@ -43,3 +43,6 @@ yarn-error.*
 # claves locales
 .env
 supabase/.temp/
+
+# credenciales de Google (OAuth)
+client_secret_*.json

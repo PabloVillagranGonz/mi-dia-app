@@ -81,4 +81,6 @@ export interface GoogleCalendar {
   category_id: UUID | null;
   kind: ActivityKind;
   notify: boolean;
+  /** Oculto en Ajustes (no se usa). Solo afecta a la lista. */
+  hidden: boolean;
 }

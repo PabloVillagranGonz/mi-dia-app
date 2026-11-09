@@ -112,7 +112,7 @@ Deno.serve(async (req) => {
         .maybeSingle();
       const { data: calendars } = await admin
         .from('google_calendars')
-        .select('id, calendar_id, summary, color, enabled, category_id, kind, notify')
+        .select('id, calendar_id, summary, color, enabled, category_id, kind, notify, hidden')
         .eq('user_id', userId)
         .order('summary');
       return json({

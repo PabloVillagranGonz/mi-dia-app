@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -39,22 +39,22 @@ async function loadWeek(weekStart: ISODate): Promise<WeekData> {
 
 /** Semanas en memoria: cambiar de semana es instantáneo y las vecinas se precargan. */
 function useWeekCache(weekStart: ISODate) {
-  const cache = useRef(new Map<ISODate, WeekData>());
-  const [, force] = useState(0);
+  const [cache, setCache] = useState<ReadonlyMap<ISODate, WeekData>>(() => new Map());
   const [error, setError] = useState<string | null>(null);
 
-  const fetchWeek = useCallback(async (ws: ISODate, notify: boolean) => {
-    try {
-      const data = await loadWeek(ws);
-      cache.current.set(ws, data);
-      if (notify) {
-        setError(null);
-        force((n) => n + 1);
-      }
-    } catch (e) {
-      if (notify) setError(errorMessage(e));
-    }
-  }, []);
+  const fetchWeek = useCallback(
+    (ws: ISODate, notify: boolean) =>
+      loadWeek(ws).then(
+        (data) => {
+          setCache((c) => new Map(c).set(ws, data));
+          if (notify) setError(null);
+        },
+        (e) => {
+          if (notify) setError(errorMessage(e));
+        },
+      ),
+    [],
+  );
 
   useEffect(() => {
     fetchWeek(weekStart, true);
@@ -65,7 +65,8 @@ function useWeekCache(weekStart: ISODate) {
 
   useEffect(() => {
     const refreshAll = () => {
-      cache.current.clear();
+      // Lo de otras semanas puede haber cambiado: se olvida y se vuelve a pedir al visitarlas
+      setCache((c) => new Map(c.has(weekStart) ? [[weekStart, c.get(weekStart)!]] : []));
       fetchWeek(weekStart, true);
     };
     const off = repo.subscribe(refreshAll);
@@ -76,12 +77,12 @@ function useWeekCache(weekStart: ISODate) {
     };
   }, [weekStart, fetchWeek]);
 
-  return { data: cache.current.get(weekStart), error };
+  return { data: cache.get(weekStart), error };
 }
 
 /** Entrada escalonada de cada tarjeta. */
 function Stagger({ index, animKey, children }: { index: number; animKey: string; children: ReactNode }) {
-  const v = useRef(new Animated.Value(0)).current;
+  const [v] = useState(() => new Animated.Value(0));
   useEffect(() => {
     v.setValue(0);
     Animated.timing(v, {
@@ -110,8 +111,8 @@ export default function SemanaScreen() {
   const { data, error } = useWeekCache(weekStart);
 
   // Animación de cambio de semana: la lista sale hacia un lado y entra por el otro
-  const slide = useRef(new Animated.Value(0)).current;
-  const fade = useRef(new Animated.Value(1)).current;
+  const [slide] = useState(() => new Animated.Value(0));
+  const [fade] = useState(() => new Animated.Value(1));
   const go = useCallback(
     (dir: -1 | 1 | 0, target?: ISODate) => {
       const next = target ?? addDays(weekStart, dir * 7);
@@ -133,17 +134,17 @@ export default function SemanaScreen() {
   );
 
   // Deslizar con el dedo a izquierda/derecha
-  const goRef = useRef(go);
-  goRef.current = go;
-  const pan = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_e, g) => Math.abs(g.dx) > 24 && Math.abs(g.dx) > Math.abs(g.dy) * 2,
-      onPanResponderRelease: (_e, g) => {
-        if (g.dx < -60) goRef.current(1);
-        else if (g.dx > 60) goRef.current(-1);
-      },
-    }),
-  ).current;
+  const pan = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_e, g) => Math.abs(g.dx) > 24 && Math.abs(g.dx) > Math.abs(g.dy) * 2,
+        onPanResponderRelease: (_e, g) => {
+          if (g.dx < -60) go(1);
+          else if (g.dx > 60) go(-1);
+        },
+      }),
+    [go],
+  );
 
   const isPastWeek = compareDates(weekEnd, today) < 0;
   const isCurrent = weekStart === currentWeek;

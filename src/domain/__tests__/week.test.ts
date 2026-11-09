@@ -10,7 +10,7 @@ let seq = 0;
 const persist = (drafts: DayActivityDraft[]): DayActivity[] =>
   drafts.map((d) => ({ ...d, id: `da-${++seq}`, user_id: 'u', week_id: 'w' }));
 
-const summary = (list: Array<Pick<DayActivity, 'date' | 'start_time' | 'end_time' | 'title'>>, date: string) =>
+const summary = (list: Pick<DayActivity, 'date' | 'start_time' | 'end_time' | 'title'>[], date: string) =>
   list
     .filter((a) => a.date === date)
     .sort((a, b) => a.start_time.localeCompare(b.start_time))

@@ -1,7 +1,7 @@
 // Fila de la línea de tiempo: hora a la izquierda, punto + línea, tarjeta y check redondo (captura 01-hoy).
 
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { Category, DayActivity } from '@/data';
@@ -38,7 +38,7 @@ function Rail({ color, dashed }: { color: string; dashed?: boolean }) {
 }
 
 function Check({ done, onPress, disabled }: { done: boolean; onPress?: () => void; disabled?: boolean }) {
-  const scale = useRef(new Animated.Value(1)).current;
+  const [scale] = useState(() => new Animated.Value(1));
   useEffect(() => {
     if (!done) return;
     scale.setValue(0.6);

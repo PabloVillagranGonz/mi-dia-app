@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
 
 import { progressLabel, type Progress } from '@/domain/progress';
@@ -6,7 +6,7 @@ import { colors, fonts, radius, spacing } from '@/theme';
 
 /** Barra fina animada. */
 export function ProgressBar({ ratio, height = 6 }: { ratio: number; height?: number }) {
-  const anim = useRef(new Animated.Value(ratio)).current;
+  const [anim] = useState(() => new Animated.Value(ratio));
   useEffect(() => {
     Animated.timing(anim, { toValue: ratio, duration: 450, useNativeDriver: false }).start();
   }, [ratio, anim]);

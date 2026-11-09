@@ -18,7 +18,7 @@ export interface DayChanges {
 export type DayActivityPatch = Partial<Omit<DayActivity, 'id' | 'user_id'>>;
 export type TemplatePatch = Partial<Omit<TemplateActivity, 'id' | 'user_id'>>;
 export type SettingsPatch = Partial<Omit<Settings, 'user_id'>>;
-export type GoogleCalendarPatch = Partial<Pick<GoogleCalendar, 'enabled' | 'category_id' | 'kind' | 'notify'>>;
+export type GoogleCalendarPatch = Partial<Pick<GoogleCalendar, 'enabled' | 'category_id' | 'kind' | 'notify' | 'hidden'>>;
 
 export interface Store {
   listCategories(): Promise<Category[]>;

@@ -1,5 +1,5 @@
 // GENERADO por scripts/build-functions.mjs desde src/domain/. NO EDITAR.
-// domain-hash: 1f1f062db7401d71
+// domain-hash: 06cfc69f217e9066
 // src/domain/clock.ts
 var TIMEZONE = "Europe/Madrid";
 var formatter = new Intl.DateTimeFormat("en-GB", {
@@ -240,10 +240,14 @@ function rebuildDay(input) {
   for (const [ext, rows] of byExt) {
     [...rows].sort((x, y) => toRange(x).start - toRange(y).start).forEach((a, i) => oldByKey.set(`${ext}#${i}`, a));
   }
+  const otherDays = /* @__PURE__ */ new Map();
+  for (const a of input.existing) {
+    if (a.date !== date && a.external_id && !otherDays.has(a.external_id)) otherDays.set(a.external_id, a);
+  }
   const sameMeta = (a, d) => a.title === d.title && a.category_id === d.category_id && a.kind === d.kind && a.notify === d.notify && a.split_group_id === d.split_group_id && a.origin === "event";
   for (const [key, d] of desired) {
     const old = oldByKey.get(key);
-    const carry = old ?? byExt.get(d.external_id)?.[0];
+    const carry = old ?? byExt.get(d.external_id)?.[0] ?? otherDays.get(d.external_id);
     const kept = carry ? { done: carry.done, done_at: carry.done_at, note: carry.note } : {};
     if (old && sameMeta(old, d)) {
       if (old.start_time !== d.start_time || old.end_time !== d.end_time) {

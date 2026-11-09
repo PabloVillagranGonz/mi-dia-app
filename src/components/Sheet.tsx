@@ -6,7 +6,20 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fonts, radius, spacing } from '@/theme';
 
 /** Hoja inferior genérica (captura 02-editar-actividad). */
-export function Sheet({ visible, title, onClose, children }: { visible: boolean; title: string; onClose: () => void; children: ReactNode }) {
+export function Sheet({
+  visible,
+  title,
+  onClose,
+  headerAction,
+  children,
+}: {
+  visible: boolean;
+  title: string;
+  onClose: () => void;
+  /** Botón extra a la izquierda de la ✕ (p. ej. la papelera de «Eliminar»). */
+  headerAction?: ReactNode;
+  children: ReactNode;
+}) {
   const insets = useSafeAreaInsets();
   // En la web el Modal se pinta fuera de #root, así que el margen del indicador de inicio se pone aquí con CSS.
   const bottom = Platform.OS === 'web' ? (`calc(env(safe-area-inset-bottom) + ${spacing.lg}px)` as unknown as number) : insets.bottom + spacing.lg;
@@ -18,9 +31,12 @@ export function Sheet({ visible, title, onClose, children }: { visible: boolean;
           <View style={styles.handle} />
           <View style={styles.header}>
             <Text style={styles.title}>{title}</Text>
-            <Pressable onPress={onClose} hitSlop={12}>
-              <Ionicons name="close" size={24} color={colors.textMuted} />
-            </Pressable>
+            <View style={styles.headerActions}>
+              {headerAction}
+              <Pressable onPress={onClose} hitSlop={12} accessibilityLabel="Cerrar">
+                <Ionicons name="close" size={24} color={colors.textMuted} />
+              </Pressable>
+            </View>
           </View>
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
             {children}
@@ -49,6 +65,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing.lg,
     paddingBottom: spacing.sm,
   },
-  title: { color: colors.text, fontFamily: fonts.display, fontSize: 24 },
+  title: { flex: 1, color: colors.text, fontFamily: fonts.display, fontSize: 24 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
   content: { paddingHorizontal: spacing.xl, paddingTop: spacing.sm, paddingBottom: spacing.md, gap: spacing.lg },
 });

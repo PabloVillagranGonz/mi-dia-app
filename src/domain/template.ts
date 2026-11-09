@@ -58,7 +58,7 @@ export function copyDayRows(
   templates: readonly TemplateActivity[],
   fromWeekday: Weekday,
   toWeekdays: readonly Weekday[],
-): Array<Omit<TemplateActivity, 'id' | 'user_id'>> {
+): Omit<TemplateActivity, 'id' | 'user_id'>[] {
   const source = templates.filter((t) => t.weekday === fromWeekday);
   return toWeekdays
     .filter((w) => w !== fromWeekday)

@@ -1,6 +1,6 @@
 // Tarjeta AHORA (grande, con pulso suave) y tarjeta PRÓXIMA.
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { Category, DayActivity } from '@/data';
@@ -10,7 +10,7 @@ import { colors, fonts, radius, spacing } from '@/theme';
 import { CategoryDot } from './CategoryChip';
 
 function usePulse() {
-  const v = useRef(new Animated.Value(0)).current;
+  const [v] = useState(() => new Animated.Value(0));
   useEffect(() => {
     const loop = Animated.loop(
       Animated.sequence([

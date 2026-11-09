@@ -8,7 +8,7 @@ import type { GoogleEventRow } from '@/domain/googleEvents';
 import type { Category, DayActivity, GoogleCalendar, Settings, TemplateActivity, Week } from '../types';
 
 /** Columnas que la app puede leer de google_calendars (los tokens no tienen permiso). */
-const CALENDAR_COLUMNS = 'id, calendar_id, summary, color, enabled, category_id, kind, notify';
+const CALENDAR_COLUMNS = 'id, calendar_id, summary, color, enabled, category_id, kind, notify, hidden';
 
 type Row = Record<string, unknown>;
 

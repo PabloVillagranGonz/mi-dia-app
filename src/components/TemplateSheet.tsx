@@ -1,6 +1,7 @@
 // Hoja para crear/editar una actividad de la rutina base, y para «Copiar este día a…».
 
-import { useEffect, useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Alert } from '@/lib/alert';
@@ -10,7 +11,7 @@ import { crossesMidnight } from '@/domain/midnight';
 import { weekdayName, weekdayShort } from '@/domain/time';
 import { colors, fonts, radius, spacing } from '@/theme';
 import { CategoryPicker } from './CategoryChip';
-import { ErrorText, Input, Label, PrimaryButton, Segmented, SwitchRow, TextButton, TimeField } from './form';
+import { ErrorText, Input, Label, PrimaryButton, Segmented, SwitchRow, TimeField } from './form';
 import { Sheet } from './Sheet';
 
 const WEEKDAYS: Weekday[] = [1, 2, 3, 4, 5, 6, 7];
@@ -47,10 +48,14 @@ export function TemplateSheet({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
+  // Rellenar el formulario al abrir (durante el render, sin efecto)
+  const [prevTarget, setPrevTarget] = useState<TemplateTarget | null>(null);
+  if (target !== prevTarget) {
+    setPrevTarget(target);
     setError(null);
-    if (!target) return;
-    if (target.mode === 'edit') {
+    if (!target) {
+      // cerrada: se deja como estaba
+    } else if (target.mode === 'edit') {
       const t = target.template;
       setTitle(t.title);
       setStart(t.start_time);
@@ -66,8 +71,7 @@ export function TemplateSheet({
       setKind('task');
       setNotify(true);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [target]);
+  }
 
   const weekday = target?.mode === 'edit' ? target.template.weekday : target?.weekday;
 
@@ -118,7 +122,18 @@ export function TemplateSheet({
   }
 
   return (
-    <Sheet visible={!!target} title={target?.mode === 'edit' ? 'Editar actividad' : 'Nueva actividad'} onClose={onClose}>
+    <Sheet
+      visible={!!target}
+      title={target?.mode === 'edit' ? 'Editar actividad' : 'Nueva actividad'}
+      onClose={onClose}
+      headerAction={
+        target?.mode === 'edit' ? (
+          <Pressable onPress={remove} hitSlop={12} accessibilityLabel="Eliminar">
+            <Ionicons name="trash-outline" size={22} color={colors.danger} />
+          </Pressable>
+        ) : null
+      }
+    >
       {weekday ? <Text style={styles.day}>Rutina de los {weekdayName(weekday)}</Text> : null}
       <View>
         <Label>Título</Label>
@@ -149,7 +164,6 @@ export function TemplateSheet({
       <SwitchRow label="Aviso" hint="Notificación al empezar" value={notify} onChange={setNotify} />
       <ErrorText>{error}</ErrorText>
       <PrimaryButton title={target?.mode === 'edit' ? 'Guardar cambios' : 'Añadir a la rutina'} onPress={save} disabled={busy} />
-      {target?.mode === 'edit' ? <TextButton title="Eliminar" color={colors.danger} onPress={remove} /> : null}
     </Sheet>
   );
 }
@@ -158,10 +172,12 @@ export function TemplateSheet({
 export function CopyDaySheet({ from, onClose }: { from: Weekday | null; onClose: () => void }) {
   const [selected, setSelected] = useState<Weekday[]>([]);
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
+  const [prevFrom, setPrevFrom] = useState(from);
+  if (from !== prevFrom) {
+    setPrevFrom(from);
     setSelected([]);
     setError(null);
-  }, [from]);
+  }
 
   const toggle = (w: Weekday) => setSelected((s) => (s.includes(w) ? s.filter((x) => x !== w) : [...s, w]));
 

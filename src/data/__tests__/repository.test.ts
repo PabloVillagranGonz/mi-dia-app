@@ -194,6 +194,7 @@ describe('repositorio con Google Calendar', () => {
     category_id: CATEGORY_IDS.musica,
     kind: 'task' as const,
     notify: true,
+    hidden: false,
   });
 
   function setupGoogle(events: ReturnType<typeof gev>[], today = MON) {
@@ -227,6 +228,27 @@ describe('repositorio con Google Calendar', () => {
     const ev = (await repo.getDay(TUE)).filter((a) => a.origin === 'event');
     expect(summary(ev)).toEqual(['17:30-18:00 Dentista', '18:00-19:00 Ensayo a', '19:00-19:30 Dentista']);
     await expect(repo.addEvent(TUE, input('Tapado', '18:15', '18:45'))).rejects.toThrow('Google Calendar');
+  });
+
+  test('editar un evento manual se comporta como añadirlo: recorta la rutina y cede ante Google', async () => {
+    const { repo } = setupGoogle([gev('a', MON, '18:00', '19:00')]);
+    await repo.ensureWeek(MON);
+    await repo.addEvent(MON, input('Dentista', '10:00', '11:00'));
+    let ev = (await repo.getDay(MON)).find((a) => a.title === 'Dentista')!;
+    await repo.setNote(ev.id, 'Llevar informe');
+    await repo.toggleDone(ev.id);
+
+    // Moverlo encima del de Google: sin error, se recorta a su alrededor
+    ev = (await repo.getDay(MON)).find((a) => a.title === 'Dentista')!;
+    await repo.updateActivity(ev.id, input('Dentista', '17:30', '19:30'));
+    const day = await repo.getDay(MON);
+    expect(summary(day.filter((a) => a.origin === 'event'))).toEqual(['17:30-18:00 Dentista', '18:00-19:00 Ensayo a', '19:00-19:30 Dentista']);
+    // Conserva hecho y nota, y nada se solapa
+    expect(day.find((a) => a.title === 'Dentista')).toMatchObject({ done: true, note: 'Llevar informe' });
+    const sorted = [...day].sort((x, y) => x.start_time.localeCompare(y.start_time));
+    for (let i = 1; i < sorted.length; i++) expect(sorted[i].start_time >= sorted[i - 1].end_time).toBe(true);
+    // El hueco que dejó (10:00–11:00) queda libre, como al borrar un evento
+    expect(day.some((a) => a.start_time < '11:00' && a.end_time > '10:00')).toBe(false);
   });
 
   test('los eventos de Google no se editan ni se borran en la app, pero se marcan y se anotan', async () => {

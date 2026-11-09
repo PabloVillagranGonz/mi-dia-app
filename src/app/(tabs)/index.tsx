@@ -36,8 +36,7 @@ export default function HoyScreen() {
   const timelineY = useRef(0);
   const scrolled = useRef(false);
 
-  const categories = cats.data ?? [];
-  const catMap = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
+  const catMap = useMemo(() => new Map((cats.data ?? []).map((c) => [c.id, c])), [cats.data]);
   const categoryOf = (id: string | null): Category | undefined => (id ? catMap.get(id) : undefined);
 
   const todays = useMemo(() => (acts.data ?? []).filter((a) => a.date === today), [acts.data, today]);
@@ -125,7 +124,7 @@ export default function HoyScreen() {
         <Ionicons name="add" size={30} color={colors.text} />
       </Pressable>
 
-      <ActivitySheet target={target} categories={categories} canCheck onClose={() => setTarget(null)} />
+      <ActivitySheet target={target} categories={cats.data ?? []} canCheck onClose={() => setTarget(null)} />
     </SafeAreaView>
   );
 }

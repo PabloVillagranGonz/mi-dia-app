@@ -177,6 +177,16 @@ describe('rebuildDay', () => {
     expect(day.find((a) => a.external_id)).toMatchObject({ start_time: '19:00', end_time: '20:00', done: true, done_at: '2026-11-11T17:30:00Z', note: 'Traer la trompeta' });
   });
 
+  test('mover el evento a otro día conserva hecho y nota', () => {
+    const before = run([], [gev('a', '18:00', '19:00')]).day.map((a) => ({ ...a, done: true, done_at: '2026-11-11T18:30:00Z', note: 'Llevar atril' }));
+    const moved = gev('a', '10:00', '11:00', 'charanga', '2026-11-12');
+    // El día de origen lo pierde…
+    expect(run(before, [moved]).day.filter((a) => a.external_id)).toEqual([]);
+    // …y el de destino lo recibe con hecho y nota
+    const ch = rebuildDay({ date: '2026-11-12', weekId: WEEK, templates: [], existing: before, googleEvents: [moved], calendars: [CAL] });
+    expect(ch.insert[0]).toMatchObject({ date: '2026-11-12', start_time: '10:00', done: true, done_at: '2026-11-11T18:30:00Z', note: 'Llevar atril' });
+  });
+
   test('cambiar el título en Google sustituye la fila conservando hecho y nota', () => {
     const before = run([], [gev('a', '18:00', '19:00')]).day.map((a) => ({ ...a, done: true, note: 'ok' }));
     const { day } = run(before, [{ ...gev('a', '18:00', '19:00'), title: 'Ensayo general' }]);

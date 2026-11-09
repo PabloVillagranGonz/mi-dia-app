@@ -121,6 +121,12 @@ export function rebuildDay(input: RebuildDayInput): DayChanges {
       .forEach((a, i) => oldByKey.set(`${ext}#${i}`, a));
   }
 
+  // Filas del mismo evento en otros días (para conservar hecho y nota si se mueve de día)
+  const otherDays = new Map<string, DayActivity>();
+  for (const a of input.existing) {
+    if (a.date !== date && a.external_id && !otherDays.has(a.external_id)) otherDays.set(a.external_id, a);
+  }
+
   const sameMeta = (a: DayActivity, d: Draft) =>
     a.title === d.title &&
     a.category_id === d.category_id &&
@@ -132,7 +138,8 @@ export function rebuildDay(input: RebuildDayInput): DayChanges {
   for (const [key, d] of desired) {
     const old = oldByKey.get(key);
     // Si cambió el número de trozos, conservar hecho y nota de cualquier fila del mismo evento
-    const carry = old ?? byExt.get(d.external_id!)?.[0];
+    // …o, si el evento se ha movido de día, de su fila en el día anterior
+    const carry = old ?? byExt.get(d.external_id!)?.[0] ?? otherDays.get(d.external_id!);
     const kept = carry ? { done: carry.done, done_at: carry.done_at, note: carry.note } : {};
     if (old && sameMeta(old, d)) {
       if (old.start_time !== d.start_time || old.end_time !== d.end_time) {

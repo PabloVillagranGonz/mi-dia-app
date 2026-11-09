@@ -20,6 +20,7 @@ export function GoogleCalendarSettings() {
   const { categories } = useCategories();
   const [status, setStatus] = useState<GoogleStatus | null>(null);
   const [busy, setBusy] = useState(false);
+  const [showHidden, setShowHidden] = useState(false);
   // Vuelta desde Google (?google=ok | error&reason=…): el mensaje sale del primer render
   const [msg, setMsg] = useState<string | null>(() => (params.google === 'ok' ? 'Conectado. Trayendo tus eventos…' : null));
   const [error, setError] = useState<string | null>(() =>
@@ -105,7 +106,23 @@ export function GoogleCalendarSettings() {
     });
   }
 
+  /** Ocultar o volver a mostrar en esta lista (no cambia nada más: no hace falta sincronizar). */
+  function setHidden(cal: GoogleCalendar, hidden: boolean) {
+    setStatus((s) => s && { ...s, calendars: s.calendars.map((c) => (c.id === cal.id ? { ...c, hidden } : c)) });
+    run(async () => {
+      try {
+        await google.updateCalendar(cal.id, { hidden });
+      } catch (e) {
+        await load();
+        throw e;
+      }
+    });
+  }
+
   if (!status) return null;
+  // Uno activo nunca se esconde: hay que desactivarlo antes
+  const visible = status.calendars.filter((c) => !c.hidden || c.enabled);
+  const hiddenCals = status.calendars.filter((c) => c.hidden && !c.enabled);
 
   return (
     <>
@@ -132,13 +149,18 @@ export function GoogleCalendarSettings() {
 
             <View style={styles.list}>
               {status.calendars.length === 0 ? <Text style={styles.hint}>No hay calendarios en esta cuenta.</Text> : null}
-              {status.calendars.map((c) => (
+              {visible.map((c) => (
                 <View key={c.id} style={styles.cal}>
                   <View style={styles.calHead}>
                     <View style={[styles.dot, { backgroundColor: c.color ?? colors.textMuted }]} />
                     <View style={{ flex: 1 }}>
                       <SwitchRow label={c.summary} value={c.enabled} onChange={(v) => change(c, { enabled: v })} />
                     </View>
+                    {!c.enabled ? (
+                      <Pressable onPress={() => setHidden(c, true)} hitSlop={10} accessibilityLabel={`Ocultar ${c.summary}`}>
+                        <Ionicons name="eye-off-outline" size={18} color={colors.textFaint} />
+                      </Pressable>
+                    ) : null}
                   </View>
                   {c.enabled ? (
                     <CategoryPicker categories={categories} value={c.category_id} onChange={(id) => change(c, { category_id: id })} />
@@ -147,8 +169,33 @@ export function GoogleCalendarSettings() {
               ))}
             </View>
 
+            {hiddenCals.length ? (
+              <View>
+                <Pressable onPress={() => setShowHidden((v) => !v)} style={styles.row} hitSlop={6}>
+                  <Ionicons name={showHidden ? 'chevron-down' : 'chevron-forward'} size={16} color={colors.textMuted} />
+                  <Text style={styles.hiddenToggle}>
+                    {showHidden ? 'Ocultar la lista' : `Mostrar ocultos (${hiddenCals.length})`}
+                  </Text>
+                </Pressable>
+                {showHidden
+                  ? hiddenCals.map((c) => (
+                      <View key={c.id} style={[styles.calHead, styles.hiddenRow]}>
+                        <View style={[styles.dot, { backgroundColor: c.color ?? colors.textMuted, opacity: 0.5 }]} />
+                        <Text style={styles.hiddenName} numberOfLines={1}>
+                          {c.summary}
+                        </Text>
+                        <Pressable onPress={() => setHidden(c, false)} hitSlop={10} style={styles.row}>
+                          <Ionicons name="eye-outline" size={18} color={colors.accent} />
+                          <Text style={styles.showText}>Mostrar</Text>
+                        </Pressable>
+                      </View>
+                    ))
+                  : null}
+              </View>
+            ) : null}
+
             <Text style={styles.hint}>
-              Semana actual y siguiente. Los eventos de todo el día no se traen. Si un evento choca con tu rutina o con algo
+              Los que no uses, desactívalos y ocúltalos con el ojo. Semana actual y siguiente. Los eventos de todo el día no se traen. Si un evento choca con tu rutina o con algo
               que hayas añadido, manda Google.
             </Text>
             <Pressable onPress={disconnect} disabled={busy} style={styles.btn}>
@@ -184,4 +231,8 @@ const styles = StyleSheet.create({
   cal: { gap: spacing.sm },
   calHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   dot: { width: 10, height: 10, borderRadius: 5 },
+  hiddenToggle: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 13 },
+  hiddenRow: { marginTop: spacing.sm, paddingLeft: spacing.lg },
+  hiddenName: { flex: 1, color: colors.textMuted, fontFamily: fonts.regular, fontSize: 14 },
+  showText: { color: colors.accent, fontFamily: fonts.semibold, fontSize: 13 },
 });

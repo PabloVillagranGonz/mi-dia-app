@@ -12,7 +12,16 @@ export function useRepoQuery<T>(load: () => Promise<T>, key: string) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const loadRef = useRef(load);
-  loadRef.current = load;
+  useEffect(() => {
+    loadRef.current = load;
+  });
+
+  // Otra consulta (otra fecha, otra semana…): vuelve a «cargando» sin esperar a un efecto
+  const [prevKey, setPrevKey] = useState(key);
+  if (key !== prevKey) {
+    setPrevKey(key);
+    setLoading(true);
+  }
 
   const refresh = useCallback(async () => {
     try {
@@ -27,7 +36,6 @@ export function useRepoQuery<T>(load: () => Promise<T>, key: string) {
   }, []);
 
   useEffect(() => {
-    setLoading(true);
     refresh();
     const off = repo.subscribe(refresh);
     const sub = AppState.addEventListener('change', (s) => s === 'active' && refresh());

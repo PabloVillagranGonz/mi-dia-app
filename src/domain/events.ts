@@ -9,9 +9,9 @@ export interface EventPlan<T extends Activity> {
   /** Actividades totalmente cubiertas por el evento. */
   toDelete: string[];
   /** Actividades recortadas por un extremo, o primer trozo si el evento cae en medio. */
-  toUpdate: Array<{ id: string } & Slot>;
+  toUpdate: ({ id: string } & Slot)[];
   /** Segundo trozo cuando el evento cae en medio: copia de la original con otras horas. */
-  toInsert: Array<Omit<T, 'id'> & Slot>;
+  toInsert: (Omit<T, 'id'> & Slot)[];
 }
 
 export type EventResult<T extends Activity> =

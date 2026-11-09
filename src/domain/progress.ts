@@ -9,7 +9,7 @@ export interface Progress {
   ratio: number;
 }
 
-export function progressOf(activities: ReadonlyArray<Pick<DayActivity, 'kind' | 'done'>>): Progress {
+export function progressOf(activities: readonly Pick<DayActivity, 'kind' | 'done'>[]): Progress {
   const tasks = activities.filter((a) => a.kind === 'task');
   const done = tasks.filter((a) => a.done).length;
   return { done, total: tasks.length, ratio: tasks.length ? done / tasks.length : 0 };

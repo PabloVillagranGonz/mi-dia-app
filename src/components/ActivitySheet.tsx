@@ -1,8 +1,8 @@
 // Hoja para editar una actividad de un día o crear un evento / actividad (spec §5 y §8).
 
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Alert } from '@/lib/alert';
 
@@ -10,7 +10,7 @@ import { errorMessage, repo, type ActivityKind, type Category, type DayActivity,
 import { crossesMidnight } from '@/domain/midnight';
 import { colors, fonts, spacing } from '@/theme';
 import { CategoryPicker } from './CategoryChip';
-import { ErrorText, Input, Label, PrimaryButton, Segmented, SwitchRow, TextButton, TimeField } from './form';
+import { ErrorText, Input, Label, PrimaryButton, Segmented, SwitchRow, TimeField } from './form';
 import { Sheet } from './Sheet';
 
 export type SheetTarget =
@@ -45,11 +45,14 @@ export function ActivitySheet({ target, categories, canCheck, readOnly: pastDay 
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // Rellenar el formulario al abrir
-  useEffect(() => {
+  // Rellenar el formulario al abrir (al cambiar `target`, durante el render: sin efecto)
+  const [prevTarget, setPrevTarget] = useState<SheetTarget | null>(null);
+  if (target !== prevTarget) {
+    setPrevTarget(target);
     setError(null);
-    if (!target) return;
-    if (target.mode === 'edit') {
+    if (!target) {
+      // cerrada: se deja el formulario como estaba para que no parpadee al deslizarse
+    } else if (target.mode === 'edit') {
       const a = target.activity;
       setTitle(a.title);
       setStart(a.start_time);
@@ -68,8 +71,7 @@ export function ActivitySheet({ target, categories, canCheck, readOnly: pastDay 
       setNote('');
       setOrigin('event');
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [target]);
+  }
 
   async function run(fn: () => Promise<void>) {
     setBusy(true);
@@ -130,7 +132,18 @@ export function ActivitySheet({ target, categories, canCheck, readOnly: pastDay 
   })();
 
   return (
-    <Sheet visible={!!target} title={title_} onClose={onClose}>
+    <Sheet
+      visible={!!target}
+      title={title_}
+      onClose={onClose}
+      headerAction={
+        editing && !readOnly ? (
+          <Pressable onPress={remove} hitSlop={12} accessibilityLabel="Eliminar">
+            <Ionicons name="trash-outline" size={22} color={colors.danger} />
+          </Pressable>
+        ) : null
+      }
+    >
       {target?.mode === 'create' ? (
         <View style={styles.block}>
           <Segmented
@@ -216,7 +229,6 @@ export function ActivitySheet({ target, categories, canCheck, readOnly: pastDay 
       {!readOnly ? (
         <View style={styles.actions}>
           <PrimaryButton title={target?.mode === 'create' ? 'Añadir' : 'Guardar cambios'} onPress={save} disabled={busy} />
-          {editing ? <TextButton title="Eliminar" color={colors.danger} onPress={remove} /> : null}
         </View>
       ) : null}
     </Sheet>

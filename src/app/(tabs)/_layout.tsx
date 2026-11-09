@@ -6,11 +6,12 @@ import { colors, fonts } from '@/theme';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
-const icon =
-  (name: IconName) =>
-  ({ color, size }: { color: ColorValue; size: number }) => (
-    <Ionicons name={name} color={color as string} size={size} />
-  );
+function icon(name: IconName) {
+  function TabIcon({ color, size }: { color: ColorValue; size: number }) {
+    return <Ionicons name={name} color={color as string} size={size} />;
+  }
+  return TabIcon;
+}
 
 export default function TabsLayout() {
   // En la web la altura por defecto (49) corta las etiquetas. El indicador de inicio ya lo deja libre #root (index.html).

@@ -14,7 +14,7 @@ import { join } from 'node:path';
 import { zonedToInstant } from '../src/domain/clock';
 import { planActivityNotifications } from '../src/domain/notifications';
 
-const MIGRATIONS = ['0001_init.sql', '0002_apply_day_changes.sql', '0003_web_push.sql', '0005_google_calendar.sql'];
+const MIGRATIONS = ['0001_init.sql', '0002_apply_day_changes.sql', '0003_web_push.sql', '0005_google_calendar.sql', '0007_gcal_hidden.sql'];
 const USER = '00000000-0000-0000-0000-00000000000a';
 const OTHER = '00000000-0000-0000-0000-00000000000b'; // sin dispositivo suscrito
 const WEEK = '00000000-0000-0000-0000-0000000000f1';
@@ -251,7 +251,8 @@ test('google_calendars: lee los suyos sin tokens y solo cambia sus preferencias'
     await failsWith(db.query(`select sync_token from public.google_calendars`), /permission denied/);
     await failsWith(db.query(`select channel_token from public.google_calendars`), /permission denied/);
     await failsWith(db.query(`select * from public.google_calendars`), /permission denied/);
-    await db.query(`update public.google_calendars set enabled = true, kind = 'fixed', notify = false`);
+    await db.query(`update public.google_calendars set enabled = true, kind = 'fixed', notify = false, hidden = true`);
+    assert.equal((await db.query<{ hidden: boolean }>(`select hidden from public.google_calendars`)).rows[0].hidden, true);
     await failsWith(db.query(`update public.google_calendars set sync_token = 'x'`), /permission denied/);
     await failsWith(db.query(`update public.google_calendars set user_id = $1`, [OTHER]), /permission denied/);
     await failsWith(db.query(`insert into public.google_calendars (user_id, calendar_id, summary) values ($1, 'c', 's')`, [USER]), /permission denied/);

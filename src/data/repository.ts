@@ -55,7 +55,7 @@ export function createRepository(store: Store, today: () => ISODate = () => loca
     if (!title.trim()) throw new UserError('Ponle un nombre a la actividad.');
   }
 
-  function overlapError(conflicts: Array<Slot & { title: string }>): never {
+  function overlapError(conflicts: (Slot & { title: string })[]): never {
     throw new UserError(validationMessage({ ok: false, reason: 'overlap', conflicts }) ?? 'Se solapa con otra actividad.');
   }
 
@@ -218,7 +218,7 @@ export function createRepository(store: Store, today: () => ISODate = () => loca
   }
 
   function assertNoOverlap(
-    pieces: Array<{ date: ISODate } & Slot>,
+    pieces: ({ date: ISODate } & Slot)[],
     dayLists: DayActivity[],
     ignoreIds: string[],
   ) {
@@ -268,8 +268,22 @@ export function createRepository(store: Store, today: () => ISODate = () => loca
     requireTitle(input.title);
     if (compareDates(date, today()) < 0) throw new UserError('Los días pasados son de solo lectura.');
     const { pieces, dayLists } = await piecesFor(date, input);
-    const group = pieces.length > 1 ? uuid() : null;
+    await placeEvent(input, pieces, dayLists, pieces.length > 1 ? uuid() : null);
+    changed();
+  }
 
+  /**
+   * Pone un evento manual (trozos ya partidos en medianoche): recorta lo que pise y se recorta él
+   * alrededor de los eventos de Google. `replace`: filas del evento que se está editando (se quitan
+   * y el nuevo conserva su hecho y nota). Todo en una transacción.
+   */
+  async function placeEvent(
+    input: ActivityInput,
+    pieces: ({ date: ISODate } & Slot)[],
+    dayLists: DayActivity[],
+    group: string | null,
+    replace: DayActivity[] = [],
+  ): Promise<void> {
     // Los eventos de Google mandan: el evento manual se recorta a su alrededor
     const google = dayLists.filter((a) => a.external_id);
     const slots = pieces.flatMap((p) =>
@@ -281,8 +295,10 @@ export function createRepository(store: Store, today: () => ISODate = () => loca
     if (!slots.length) throw new UserError('A esa hora ya hay un evento de Google Calendar.');
 
     // Validar y aplicar en memoria todos los trozos antes de escribir nada
-    const original = dayLists.filter((a) => !a.external_id);
-    let state: DayActivity[] = original;
+    const replaceIds = new Set(replace.map((r) => r.id));
+    const original = [...dayLists, ...replace.filter((r) => !dayLists.some((d) => d.id === r.id))].filter((a) => !a.external_id);
+    let state: DayActivity[] = original.filter((a) => !replaceIds.has(a.id));
+    const kept = replace[0] ? { done: replace[0].done, done_at: replace[0].done_at, note: replace[0].note } : {};
     let tmp = 0;
     const newId = () => `tmp:${++tmp}`;
     for (const slot of slots) {
@@ -290,12 +306,11 @@ export function createRepository(store: Store, today: () => ISODate = () => loca
       if (!r.ok) overlapError(r.conflicts);
       const weekId = await weekIdFor(slot.date);
       state = applyEventPlan(state, r.plan, newId);
-      state.push({ ...draftOf(input, slot.date, slot, 'event', group), week_id: weekId, id: newId(), user_id: '' });
+      state.push({ ...draftOf(input, slot.date, slot, 'event', group), ...kept, week_id: weekId, id: newId(), user_id: '' });
     }
 
     // Todo en una transacción: si falla, el día no queda a medias
     await store.applyDayChanges(diffDay(original, state));
-    changed();
   }
 
   /**
@@ -310,6 +325,17 @@ export function createRepository(store: Store, today: () => ISODate = () => loca
     rejectGoogle(a);
 
     const { pieces, dayLists } = await piecesFor(a.date, input);
+
+    // Un evento editado se comporta como uno nuevo: recorta lo que pise y cede ante Google
+    if (a.origin === 'event') {
+      const around = await store.listDayActivities(addDays(a.date, -1), addDays(a.date, 1));
+      const ownIds = linkedIds(a, around);
+      const own = [a, ...around.filter((x) => x.id !== a.id && ownIds.includes(x.id))];
+      await placeEvent(input, pieces, dayLists, pieces.length > 1 ? (a.split_group_id ?? uuid()) : null, own);
+      changed();
+      return;
+    }
+
     const own = linkedIds(a, dayLists);
     assertNoOverlap(pieces, dayLists, own);
 
