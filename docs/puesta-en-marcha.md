@@ -1,168 +1,167 @@
 # Puesta en marcha — Supabase, app en el iPhone y notificaciones
 
-Pasos en orden. Marca cada uno al terminarlo.
+Pasos en orden. Lo hecho está tachado; lo descartado se queda como histórico.
+
+**App:** https://mi-dia-app-seven.vercel.app · **Supabase:** proyecto `bnqxmgtpqwhaztvpneyx` · **Repo:** `PabloVillagranGonz/mi-dia-app`
+
+---
+
+## Estado
+
+### Hecho
+- ~~Repositorio en GitHub~~ (§1)
+- ~~Proyecto Supabase, tablas, RLS y alta automática de la rutina~~ (§2–3)
+- ~~Login con email + contraseña y registro cerrado~~ (§4)
+- ~~Conectar la app (`.env.local`)~~ (§5)
+- ~~Migración `0002_apply_day_changes.sql`~~ (§9)
+- ~~Decidir cómo usarla sin el Mac → PWA en Vercel~~ (§8)
+- ~~Versión web en Vercel, instalada en el iPhone~~ (§10)
+- ~~Márgenes del notch / indicador de inicio en la PWA~~ (§10)
+- ~~Avisos Web Push: tablas, Edge Function, secretos, cron~~ (§11) — probado en el iPhone
+- ~~App sin conexión (service worker)~~ (§10)
+- ~~Icono propio~~
+- ~~Tests SQL de los avisos (`npm run test:sql`)~~
+
+### Pendiente
+- [ ] **Más usuarios** (§12)
+- [ ] **Sincronización con Google Calendar** (Fase 2; empezar con `/spec`)
+- [ ] **Panel `/admin`** para ti: estadísticas y compartir cosas con los usuarios (más adelante)
+
+### Descartado / solo para desarrollo
+- Expo Go en el iPhone (§6) y notificaciones locales (§7): siguen funcionando en nativo, pero el uso diario es la PWA.
+- Build nativa con Apple Developer (99 €/año) (§8).
 
 ---
 
 ## 1. Repositorio
 
-- [x] Ya está inicializado en local con el remoto `https://github.com/PabloVillagranGonz/mi-dia-app.git`.
-- [x] Primer commit y `git push -u origin main` (cuando revises la estructura).
+- [x] ~~Inicializado con el remoto `https://github.com/PabloVillagranGonz/mi-dia-app.git`.~~
+- [x] ~~Primer commit y `git push -u origin main`.~~
 - `.env.local` está en `.gitignore`: **las claves nunca se suben**.
 
 ---
 
 ## 2. Proyecto Supabase
 
-1. [x] Entra en https://supabase.com → **New project**.
-   - Nombre: `mi-dia`.
-   - Región: **Central EU (Frankfurt)** o **West EU (Ireland)** (la más cercana a Madrid).
-   - Contraseña de la base de datos: guárdala en tu gestor de contraseñas (no la necesita la app).
-2. [x] Espera a que termine de crearse (1–2 min).
+1. [x] ~~Entra en https://supabase.com → **New project** (nombre `mi-dia`, región West EU). Guarda la contraseña de la base de datos en tu gestor.~~
+2. [x] ~~Espera a que termine de crearse.~~
 
 ## 3. Crear las tablas
 
-1. [x] Menú izquierdo → **SQL Editor** → **New query**.
-2. [x] Pega **entero** el contenido de `supabase/migrations/0001_init.sql` y pulsa **Run**.
-3. [x] Comprueba en **Table Editor** que existen: `categories`, `template_activities`, `weeks`, `day_activities`, `settings`, y que todas muestran el candado de **RLS enabled**.
+1. [x] ~~**SQL Editor** → pega `supabase/migrations/0001_init.sql` → **Run**.~~
+2. [x] ~~Comprueba en **Table Editor** las 5 tablas con **RLS enabled**.~~
 
 Qué hace ese script:
 - Crea las 5 tablas del spec (+ `edited` en `day_activities` y `notifications_enabled` en `settings`).
 - Activa RLS: cada usuario solo ve sus filas.
-- Crea un trigger: **cuando te registras por primera vez** se crean tus 4 categorías, tus ajustes y la rutina base de lunes a viernes.
+- Crea un trigger: **cuando se crea un usuario** se crean sus 4 categorías, sus ajustes y la rutina base de lunes a viernes.
 
-> Si creaste tu usuario **antes** de lanzar el script, el trigger no se ejecutó. Arréglalo en el SQL Editor:
+> Si un usuario se creó **antes** de lanzar el script, el trigger no se ejecutó:
 > ```sql
-> select public.seed_user(id) from auth.users where email = 'TU_EMAIL';
+> select public.seed_user(id) from auth.users where email = 'SU_EMAIL';
 > ```
 
 ## 4. Login con email y contraseña
 
-> Cambio del 9-11-2026: sin SMTP propio Supabase no deja editar los correos y el de por defecto solo manda un enlace, así que el login es **email + contraseña** (sin correos ni deep links).
+> Sin SMTP propio Supabase no deja editar los correos, así que el login es **email + contraseña** (sin correos ni deep links).
 
-1. [x] **Authentication → Sign In / Providers → Email**: ya está activado.
-2. [x] **Authentication → Users → Add user → Create new user**:
-   - Tu email y una contraseña **nueva** (no la de otro servicio). Guárdala en tu gestor.
-   - Marca **Auto Confirm User** (así no hace falta correo de confirmación).
-3. [x] Comprueba en **Table Editor** que se ha creado tu rutina:
-   - `categories` → 4 filas · `template_activities` → **49 filas** · `settings` → 1 fila.
-4. [x] **Cerrar el registro** (recomendado): en **Sign In / Providers → User Signups**, desactiva **Allow new users to sign up** y pulsa **Save changes**. La clave publishable va dentro de la app, así que sin esto cualquiera que la tenga podría crearse una cuenta en tu proyecto. Tú sigues pudiendo entrar con tu usuario.
+1. [x] ~~**Authentication → Sign In / Providers → Email** activado.~~
+2. [x] ~~**Authentication → Users → Add user** con tu email, contraseña nueva y **Auto Confirm User**.~~
+3. [x] ~~Comprobado: `categories` 4 filas · `template_activities` 49 · `settings` 1.~~
+4. [x] ~~**Registro cerrado** (*Allow new users to sign up* desactivado). Los usuarios nuevos se crean a mano (§12).~~
 
 ## 5. Conectar la app
 
-1. [ ] **Project Settings → API Keys** (o el botón **Connect** de arriba). Copia:
-   - **Project URL** (`https://xxxx.supabase.co`)
-   - **Publishable key** (`sb_publishable_...`). Si tu panel solo muestra la clave **anon** (legacy), vale igual.
-   - ⚠️ **Nunca** la `secret` / `service_role`: esa se salta el RLS.
-2. [ ] En la raíz del proyecto, crea `.env.local`:
-   ```
-   EXPO_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
-   EXPO_PUBLIC_SUPABASE_KEY=sb_publishable_xxxxxxxx
-   ```
-3. [ ] Reinicia el servidor con caché limpia: `npx expo start --clear`.
+1. [x] ~~Copiar **Project URL** y **Publishable key** (nunca la `secret` / `service_role`).~~
+2. [x] ~~Crear `.env.local` con `EXPO_PUBLIC_SUPABASE_URL` y `EXPO_PUBLIC_SUPABASE_KEY`.~~
+3. [x] ~~`npx expo start --clear`.~~
 
-> Mientras no exista `.env.local`, la app funciona con **datos de prueba** (`src/data/mock/`). En cuanto haya claves, usa Supabase.
+> Sin `.env.local` la app funciona con **datos de prueba** (`src/data/mock/`).
 
-## 6. Abrir la app en el iPhone (Expo Go)
+## 6. Expo Go (solo desarrollo)
 
-1. [ ] Instala **Expo Go** desde la App Store.
-2. [ ] Cuenta gratuita de Expo (https://expo.dev/signup). Inicia sesión **con la misma cuenta** en el Mac (`npx expo login`, comprobar con `npx expo whoami`) y en la app Expo Go (perfil → Log in). Sin esto Expo Go no abre el proyecto.
-   - Si haces `npx expo login` con el servidor en marcha, reinícialo (`Ctrl+C` y `npx expo start`).
-3. [ ] En el Mac: `npm install` (solo la primera vez) y `npx expo start`.
-4. [ ] Con el iPhone en la **misma wifi** que el Mac, escanea el QR con la **cámara** → se abre en Expo Go.
-   - Si no conecta (wifi de la universidad, de un bar…): `npx expo start --tunnel`.
-5. [ ] Primer arranque: email + contraseña. La sesión queda guardada; no lo volverás a pedir.
-6. [ ] Comprueba la conexión desde el Mac con `npm run check:supabase`.
+~~Uso diario con Expo Go~~ → sustituido por la PWA (§10). Para probar en nativo:
+- `npx expo start` (o `--tunnel` fuera de casa) y escanear el QR con la cámara. Misma cuenta de Expo en el Mac (`npx expo login`) y en Expo Go.
+- `npm run check:supabase` comprueba la conexión desde el Mac.
+- Expo Go solo abre la última SDK (el proyecto está en la **58**). Cuando se actualice: `npx expo install expo@latest && npx expo install --fix`.
 
-**Aviso Expo Go:** solo abre proyectos de la última SDK. El proyecto está en la **SDK 58**. Cuando Expo Go se actualice a la siguiente, habrá que subir de versión (`npx expo install expo@latest && npx expo install --fix`).
+## 7. Notificaciones locales (solo nativo)
 
----
+~~Uso diario~~ → en la PWA los avisos van por Web Push (§11). En nativo:
+- Al empezar cada actividad con *Aviso*: «Hasta las HH:MM · Siguiente: X». Recordatorio de planificación el día/hora de Ajustes.
+- iOS guarda 64 pendientes: se programan **hoy + mañana** y se recalculan al abrir la app o cambiar algo.
+- Aparecen como de «Expo Go». Al cerrar sesión se cancelan.
 
-## 7. Notificaciones locales
+## 8. Usarla sin el Mac
 
-No requieren nada en Supabase ni cuenta de Apple: se programan en el propio iPhone.
+| Opción | Coste | Pega |
+|---|---|---|
+| ~~Apple Developer + EAS Build~~ | 99 €/año | El coste. |
+| ~~Xcode con Apple ID gratis~~ | 0 € | Caduca a los 7 días. |
+| ~~Seguir con Expo Go~~ | 0 € | El Mac encendido con el servidor. |
+| **PWA en Vercel** ✅ | 0 € | Sin widget ni Live Activity. |
 
-### Qué hace la app
-- **Al empezar cada actividad** con *Aviso* activado: título = nombre de la actividad; cuerpo = «Hasta las HH:MM · Siguiente: X».
-- **Domingo a las 20:00**: «Planifica tu semana». Al tocarla abre la pantalla Planificar.
-- iOS solo guarda **64 notificaciones pendientes**, así que se programan solo **hoy + mañana**. Se vuelven a calcular cada vez que abres la app, vuelves a ella o cambias algo.
+**Decisión (9-11-2026): app web instalable (PWA) en Vercel.** Ver §10.
 
-### Pasos
-1. [ ] La primera vez que abras la app te pedirá permiso para notificaciones → **Permitir**.
-   - Si lo denegaste: **Ajustes del iPhone → Expo Go → Notificaciones → Permitir**.
-2. [ ] En la app, **Ajustes → Notificaciones**: activadas.
-3. [ ] Prueba: en **Ajustes** de la app habrá un botón **«Enviar notificación de prueba»** (llega en 5 s). Bloquea el móvil para verla.
-4. [ ] Si no llegan: revisa que el modo **Concentración / No molestar** no silencie Expo Go.
+## 9. Migraciones de Supabase
 
-### Limitaciones a tener en cuenta
-- Las notificaciones aparecen **como de «Expo Go»**, no de «Mi Día». Eso cambia con TestFlight.
-- Como solo se programan hoy + mañana, si pasas **más de un día sin abrir la app** dejarán de llegar los avisos de actividades (el recordatorio del domingo sí, porque es semanal y fijo). Abrir la app un momento cada día lo resuelve.
-- Si cierras sesión, se cancelan todas.
+- [x] ~~`0001_init.sql`~~
+- [x] ~~`0002_apply_day_changes.sql`: añadir evento, restaurar día y aplicar rutina en una sola transacción.~~
+- [x] ~~`0003_web_push.sql` + función `push` + `0004_push_cron.sql` (§11).~~
 
----
-
-## 8. Usarla sin el Mac (app instalada)
-
-> En la SDK 58, Expo Go **solo abre updates de EAS en Android**. En iPhone, para usar la app sin `npx expo start` hace falta instalar una build propia de «Mi Día» (con su nombre e icono). Opciones:
-
-| Opción | Coste | Cómo | Pega |
-|---|---|---|---|
-| **Apple Developer + EAS Build** | 99 €/año | Build en la nube de Expo (sin Xcode) → instalación directa (*internal distribution*) o TestFlight. Después, cambios por EAS Update sin reinstalar. | El coste. |
-| **Xcode con Apple ID gratis** | 0 € | Compilar en el Mac con Xcode e instalar por cable en el iPhone. | Caduca a los **7 días**: hay que reinstalar desde el Mac cada semana. |
-| **Seguir con Expo Go** | 0 € | `npx expo start --tunnel` | El Mac tiene que estar encendido con el servidor. |
-
-**Decisión (nov 2026): app web instalable (PWA) en Vercel, gratis.** Ver sección 10.
-
-## 9. Migraciones pendientes de Supabase
-
-- [x] `0003_web_push.sql` + función `push` + `0004_push_cron.sql` (ver sección 11).
-
-- [x] `supabase/migrations/0002_apply_day_changes.sql` → SQL Editor → Run. Hace que añadir un evento, restaurar un día o aplicar la rutina se guarden en una sola transacción. Comprobar con `npm run check:supabase`.
+Para las siguientes: `npx supabase db query --remote=bnqxmgtpqwhaztvpneyx --yes -f supabase/migrations/000X_….sql` (requiere `npx supabase login` en la app Terminal).
 
 ## 10. Versión web (PWA) en Vercel
 
-La misma app se compila para la web (`npx expo export -p web` → `dist/`) y se sirve gratis en Vercel. Cada `git push` a `main` la vuelve a publicar.
+La misma app se compila para la web y se sirve gratis en Vercel. **Cada `git push` a `main` la publica.**
 
-**Primera vez (en vercel.com):**
-1. Entrar con GitHub → **Add New… → Project** → importar `mi-dia-app`.
-2. Framework: *Other*. El resto lo lee de `vercel.json` (build `npx expo export -p web`, salida `dist`).
-3. **Environment Variables:** `EXPO_PUBLIC_SUPABASE_URL` y `EXPO_PUBLIC_SUPABASE_KEY` (los mismos valores que `.env.local`).
-4. **Deploy.** Queda en `https://<proyecto>.vercel.app`.
+**Configuración (hecha):**
+1. [x] ~~Vercel → importar `mi-dia-app` (framework *Other*; build y salida en `vercel.json`).~~
+2. [x] ~~**Environment Variables:** `EXPO_PUBLIC_SUPABASE_URL` y `EXPO_PUBLIC_SUPABASE_KEY` como **Config**, no *Secret* (Vercel no admite *Secret* con prefijo público; además, estos valores van dentro de la app).~~
+3. [x] ~~Deploy → https://mi-dia-app-seven.vercel.app~~
 
-**En el iPhone:** abrir esa URL en **Safari** → Compartir → **Añadir a pantalla de inicio**. Se abre a pantalla completa con su icono. Iniciar sesión una vez.
+**En el iPhone:** Safari → Compartir → **Añadir a pantalla de inicio** → iniciar sesión una vez. Si cambia el icono, hay que borrarla y volver a añadirla.
 
 **Diferencias con la versión nativa:**
-- Las notificaciones van por Web Push (sección 11), no se programan en el dispositivo.
-- Los diálogos de confirmación usan los del navegador (`src/lib/alert.web.ts`).
-- El selector de hora es `<input type="time">` (`src/components/TimePicker.web.tsx`).
+- Avisos por Web Push (§11).
+- Diálogos de confirmación del navegador (`src/lib/alert.web.ts`).
+- Selector de hora `<input type="time">` (`src/components/TimePicker.web.tsx`).
+- Márgenes del notch e indicador de inicio por CSS (`public/index.html` + `WebSafeArea.web.tsx`); en modo app instalada `#root` toma el alto de la pantalla.
 
-**Sin conexión:** el service worker (`public/sw.js`) guarda la app en el iPhone, así que abre aunque no haya internet y muestra lo último que vio (caché de lectura). Para escribir hace falta conexión. En cada build, `scripts/build-sw.mjs` mete en `dist/sw.js` la versión y la lista de archivos a guardar; al publicar una versión nueva, el iPhone la descarga sola la siguiente vez que abre la app con conexión.
+**Sin conexión:** el service worker (`public/sw.js`) guarda la app (~4 MB). En cada build, `scripts/build-sw.mjs` mete en `dist/sw.js` la versión y la lista de archivos. La versión nueva se descarga sola la siguiente vez que se abre con conexión.
 
 **Probar en local:** `npx expo export -p web && node scripts/build-sw.mjs && npx serve -s dist`.
 
 ## 11. Avisos en la versión web (Web Push)
 
-En la web no hay notificaciones locales: las envía el servidor.
-
 ```
-pg_cron (cada minuto) → Edge Function `push` → claim_due_push() → Web Push → service worker (public/sw.js) → aviso
+pg_cron (cada minuto) → Edge Function `push` → claim_due_push() → Web Push → service worker → aviso
 ```
 
-- `supabase/migrations/0003_web_push.sql`: tablas `push_subscriptions` (un dispositivo por fila) y `push_log` (avisos ya enviados, para no repetir), y `claim_due_push()`, que aplica las mismas reglas que `src/domain/notifications.ts`.
-- `supabase/functions/push/index.ts`: envía lo pendiente (llamada del cron, cabecera `x-cron-secret`) o una prueba (botón de Ajustes, con la sesión del usuario). Borra las suscripciones caducadas.
-- `supabase/migrations/0004_push_cron.sql`: el job `mi-dia-push` de `pg_cron` + `pg_net`. Lee el secreto de Vault (`push_cron_secret`).
-- Cliente: `src/notifications/webPush.ts` (permiso + suscripción), `src/components/WebPushSettings.web.tsx` (panel de Ajustes).
+- `0003_web_push.sql`: `push_subscriptions` (un dispositivo por fila), `push_log` (avisos enviados, para no repetir) y `claim_due_push()` (mismas reglas que `src/domain/notifications.ts`).
+- `supabase/functions/push/index.ts`: envía lo pendiente (cron, cabecera `x-cron-secret`) o una prueba (botón de Ajustes, con la sesión del usuario). Borra suscripciones caducadas.
+- `0004_push_cron.sql`: job `mi-dia-push` (`pg_cron` + `pg_net`); lee el secreto de Vault (`push_cron_secret`).
+- Cliente: `src/notifications/webPush.ts` y `src/components/WebPushSettings.web.tsx`.
 
-**Secretos de la función** (Edge Functions → Secrets): `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (`mailto:…`), `CRON_SECRET` (el mismo valor que `push_cron_secret` en Vault). La clave pública VAPID también está en `src/notifications/webPush.ts`; si se cambian las claves, hay que cambiarla allí y volver a activar los avisos en cada dispositivo.
+**Puesta en marcha (hecha):**
+1. [x] ~~Ejecutar `0003_web_push.sql`.~~
+2. [x] ~~`npx supabase functions deploy push --remote=bnqxmgtpqwhaztvpneyx --no-verify-jwt --use-api`.~~
+3. [x] ~~Secretos: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (`https://mi-dia-app-seven.vercel.app`), `CRON_SECRET`.~~
+4. [x] ~~`select vault.create_secret('<CRON_SECRET>', 'push_cron_secret');` y `0004_push_cron.sql`.~~
+5. [x] ~~En el iPhone: Ajustes → «Activar avisos en este dispositivo» → prueba → aviso real comprobado (sale una sola vez).~~
 
-**Puesta en marcha (una vez):**
-1. Ejecutar `0003_web_push.sql`.
-2. Desplegar la función sin verificación de JWT: `npx supabase functions deploy push --project-ref bnqxmgtpqwhaztvpneyx --no-verify-jwt --use-api`.
-3. Poner los secretos: `npx supabase secrets set --project-ref … VAPID_PUBLIC_KEY=… VAPID_PRIVATE_KEY=… VAPID_SUBJECT=mailto:… CRON_SECRET=…`.
-4. `select vault.create_secret('<CRON_SECRET>', 'push_cron_secret');` y después `0004_push_cron.sql`.
+**Si hubiera que regenerar las claves VAPID** (no se guarda copia fuera de Supabase): `npx web-push generate-vapid-keys`, cambiar la pública en `src/notifications/webPush.ts`, subir los secretos nuevos y volver a pulsar «Activar avisos» en cada dispositivo.
 
-**En el iPhone** (iOS 16.4 o posterior): abrir la app **desde el icono de la pantalla de inicio** → Ajustes → «Activar avisos en este dispositivo» → Permitir → «Enviar notificación de prueba».
-
-**Tests:** `npm run test:sql` carga las migraciones en un Postgres embebido (PGlite) y comprueba que `claim_due_push()` avisa igual que la app (hora, texto, medianoche, cambio de hora, sin repetir).
+**Tests:** `npm run test:sql` (PGlite) comprueba que `claim_due_push()` avisa igual que la app.
 
 **Comprobar el cron:** `select * from cron.job_run_details order by start_time desc limit 5;` y `select status_code, content from net._http_response order by created desc limit 5;`
+
+## 12. Añadir usuarios
+
+El registro está cerrado: cada usuario se crea a mano y tiene **sus propios datos** (RLS). Al crearlo, el trigger le genera categorías, ajustes y la rutina base de ejemplo, que luego cambia desde la pestaña Rutina.
+
+1. [ ] **Authentication → Users → Add user → Create new user**: su email y una contraseña inicial; marca **Auto Confirm User**.
+2. [ ] Comprueba en **Table Editor → `settings`** que hay una fila nueva con su `user_id`.
+3. [ ] Pásale la URL y la contraseña por un canal privado. En su iPhone: Safari → Añadir a pantalla de inicio → entrar → Ajustes → «Activar avisos en este dispositivo».
+
+> La app aún no tiene «cambiar contraseña». Si la quiere cambiar: **Authentication → Users → ⋯ → Reset password** o se añade la opción en Ajustes.

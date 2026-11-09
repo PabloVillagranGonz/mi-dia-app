@@ -285,5 +285,6 @@ Las capturas están en `docs/diseno/`:
 ## 9. Fuera de la Fase 1
 - Sincronización con Google Calendar.
 - Modo offline completo con escritura.
-- Estadísticas históricas (rachas, horas por categoría).
+- Estadísticas históricas (rachas, horas por categoría), en un panel **`/admin`** solo para el administrador, desde el que también se podrán compartir cosas con los usuarios (más adelante).
+- Varios usuarios: cada uno con sus datos (RLS); se dan de alta a mano en Supabase (registro cerrado).
 - Widget de iOS / Live Activity con la actividad actual (requiere build nativa y cuenta de Apple Developer; no es posible en la PWA).
