@@ -136,7 +136,9 @@ La misma app se compila para la web (`npx expo export -p web` → `dist/`) y se 
 - Los diálogos de confirmación usan los del navegador (`src/lib/alert.web.ts`).
 - El selector de hora es `<input type="time">` (`src/components/TimePicker.web.tsx`).
 
-**Probar en local:** `npx expo export -p web && npx serve -s dist`.
+**Sin conexión:** el service worker (`public/sw.js`) guarda la app en el iPhone, así que abre aunque no haya internet y muestra lo último que vio (caché de lectura). Para escribir hace falta conexión. En cada build, `scripts/build-sw.mjs` mete en `dist/sw.js` la versión y la lista de archivos a guardar; al publicar una versión nueva, el iPhone la descarga sola la siguiente vez que abre la app con conexión.
+
+**Probar en local:** `npx expo export -p web && node scripts/build-sw.mjs && npx serve -s dist`.
 
 ## 11. Avisos en la versión web (Web Push)
 
@@ -160,5 +162,7 @@ pg_cron (cada minuto) → Edge Function `push` → claim_due_push() → Web Push
 4. `select vault.create_secret('<CRON_SECRET>', 'push_cron_secret');` y después `0004_push_cron.sql`.
 
 **En el iPhone** (iOS 16.4 o posterior): abrir la app **desde el icono de la pantalla de inicio** → Ajustes → «Activar avisos en este dispositivo» → Permitir → «Enviar notificación de prueba».
+
+**Tests:** `npm run test:sql` carga las migraciones en un Postgres embebido (PGlite) y comprueba que `claim_due_push()` avisa igual que la app (hora, texto, medianoche, cambio de hora, sin repetir).
 
 **Comprobar el cron:** `select * from cron.job_run_details order by start_time desc limit 5;` y `select status_code, content from net._http_response order by created desc limit 5;`

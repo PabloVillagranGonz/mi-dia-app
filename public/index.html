@@ -53,6 +53,13 @@
         window.addEventListener('resize', fit);
         window.addEventListener('orientationchange', fit);
       })();
+
+      // Service worker: guarda la app para abrirla sin conexión y recibe los avisos
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function () {
+          navigator.serviceWorker.register('/sw.js').catch(function () {});
+        });
+      }
     </script>
   </body>
 </html>

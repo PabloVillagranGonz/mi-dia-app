@@ -9,16 +9,18 @@ Este documento junta todas las decisiones tomadas. La interfaz sale de Emergent 
 
 | Pieza | Elección |
 |---|---|
-| App | Expo (última SDK soportada por Expo Go) + **TypeScript** + **Expo Router** |
+| App | Expo SDK 58 + **TypeScript** + **Expo Router**. Se usa como **app web instalable (PWA)**; el mismo código sigue compilando para nativo. |
 | Backend | **Supabase** (Postgres + Auth), usado directamente desde la app con `@supabase/supabase-js`. Sin servidor propio. |
 | Auth | **Email + contraseña** (usuario creado a mano en Supabase, registro cerrado). Sin magic link ni OTP: el correo por defecto de Supabase solo manda enlaces y los deep links en Expo Go dan problemas. Sesión persistida en AsyncStorage → login una sola vez. |
-| Notificaciones | `expo-notifications`, solo **locales** (funcionan en Expo Go). |
-| Instalación | **Expo Go** con el Mac sirviendo la app (`npx expo start`). ⚠️ En la SDK 58 Expo Go **no abre updates de EAS en iOS** (solo Android): para usarla sin el Mac hace falta una build propia (ver `docs/puesta-en-marcha.md` §8). |
+| Notificaciones | **Web (PWA, uso diario):** Web Push enviado por Supabase (pg_cron cada minuto → Edge Function `push`). **Nativo:** `expo-notifications` locales. Ver §4.5. |
+| Instalación | **PWA en Vercel** (gratis): `git push` a `main` publica; en el iPhone, Safari → «Añadir a pantalla de inicio». Expo Go queda solo para desarrollo. Ver `docs/puesta-en-marcha.md` §10. |
 | Zona horaria | `Europe/Madrid`. Formato 24 h. Semana de **lunes a domingo**. Todo el texto en español. |
 
-**Aviso Expo Go:** solo soporta la SDK más reciente. Cuando Expo publique una SDK nueva y Expo Go se actualice, habrá que subir el proyecto de versión para que siga abriendo.
+**Por qué PWA y no app nativa (decisión del 9-11-2026):** instalar una app nativa en el iPhone de forma permanente exige la cuenta de Apple Developer (99 €/año); con Apple ID gratis caduca cada 7 días y Expo Go necesita el Mac encendido. La PWA es gratis, se actualiza sola y admite avisos (Web Push, iOS 16.4+). Lo que se pierde: widget y Live Activity.
 
-**Conexión:** en la Fase 1 la app necesita internet para escribir. Se guarda en caché la última lectura de hoy y de la semana (AsyncStorage) para poder consultarlas sin conexión.
+**Aviso Expo Go (solo desarrollo):** solo soporta la SDK más reciente. Cuando Expo Go se actualice, habrá que subir el proyecto de versión para seguir probando en nativo.
+
+**Conexión:** en la Fase 1 la app necesita internet para escribir. Se guarda en caché la última lectura de hoy y de la semana (AsyncStorage; en la web, localStorage) para poder consultarlas sin conexión. En la web, el service worker guarda además la propia app, así que abre aunque no haya conexión.
 
 ---
 
@@ -48,7 +50,7 @@ Este documento junta todas las decisiones tomadas. La interfaz sale de Emergent 
 - **«Aplicar a esta semana»** afecta a los días a partir de **mañana**. Hoy no se toca para no romper lo ya marcado.
 
 ### Decisiones del 9-11-2026
-- **Dispositivo:** iPhone (Expo Go). Expo SDK 58.
+- **Dispositivo:** iPhone, como PWA en la pantalla de inicio (antes Expo Go). Expo SDK 58.
 - **Ajustes manuales se respetan:** una actividad de un día con el horario/título cambiado a mano se marca `edited = true` y «Aplicar rutina base» no la sobrescribe.
 - **Copiar la semana anterior** regenera desde la rutina base las actividades `origin = 'template'` no editadas (así no se arrastran los recortes de eventos que no se copian) y copia tal cual las `manual` y las `template` con `edited = true`.
 - **Fin de semana vacío**, también la noche del viernes al sábado (sin «Dormir»).
@@ -163,7 +165,8 @@ Al borrar un evento, el hueco se queda como «Tiempo libre» (no se restaura la 
 
 ### 4.5 Notificaciones
 - Al inicio de cada actividad con `notify = true`: título = nombre de la actividad; cuerpo = «Hasta las HH:MM · Siguiente: X».
-- iOS solo admite **64 notificaciones pendientes** → se programan en ventana móvil (hoy + mañana) y se reprograman al abrir la app, al volver a primer plano y tras cualquier cambio.
+- **Web (PWA):** las envía el servidor. `pg_cron` llama cada minuto a la Edge Function `push`, que usa `claim_due_push()` (SQL, mismas reglas que `src/domain/notifications.ts`, comprobado con `npm run test:sql`) y manda Web Push a cada dispositivo suscrito. Cada aviso se registra en `push_log` para no repetirlo. Se activan por dispositivo desde Ajustes («Activar avisos en este dispositivo»); en iPhone solo con la app abierta desde la pantalla de inicio.
+- **Nativo:** notificaciones locales. iOS solo admite **64 pendientes** → se programan en ventana móvil (hoy + mañana) y se reprograman al abrir la app, al volver a primer plano y tras cualquier cambio.
 - Recordatorio semanal: **domingo 20:00**, «Planifica tu semana». Al tocarlo abre `/planificar`.
 - Si es domingo y la semana siguiente no está planificada → banner en la vista Hoy.
 
@@ -249,8 +252,8 @@ Vacíos (todo «Tiempo libre»). Se rellenan a mano o con eventos en la planific
 2. Auth con email + contraseña y persistencia de la sesión.
 3. Cambiar la capa `src/data/` de datos de prueba a Supabase (+ caché de lectura).
 4. Reglas de la sección 4: generar semanas, eventos con recorte, medianoche, solapes y aplicar cambios de la base.
-5. Notificaciones locales con ventana móvil + recordatorio dominical.
-6. EAS Update para usarla desde Expo Go.
+5. Notificaciones locales con ventana móvil + recordatorio dominical (nativo) y Web Push desde Supabase (web).
+6. ~~EAS Update para usarla desde Expo Go~~ → sustituido por la PWA en Vercel.
 7. Tests unitarios de las funciones puras: recorte de eventos, partir en medianoche, detección de solapes, cálculo de huecos y progreso.
 
 ---
@@ -283,4 +286,4 @@ Las capturas están en `docs/diseno/`:
 - Sincronización con Google Calendar.
 - Modo offline completo con escritura.
 - Estadísticas históricas (rachas, horas por categoría).
-- Widget de iOS / Live Activity con la actividad actual (requiere build propia, no Expo Go).
+- Widget de iOS / Live Activity con la actividad actual (requiere build nativa y cuenta de Apple Developer; no es posible en la PWA).

@@ -26,6 +26,7 @@
     "react-native-web": "^0.21.4"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.15",
     "@types/jest": "30.0.0",
     "@types/react": "~19.3.0",
     "jest": "~30.5.2",
@@ -40,7 +41,8 @@
     "test": "jest",
     "typecheck": "tsc --noEmit",
     "lint": "expo lint",
-    "check:supabase": "tsx scripts/check-supabase.ts"
+    "check:supabase": "tsx scripts/check-supabase.ts",
+    "test:sql": "tsx scripts/test-sql.ts"
   },
   "private": true,
   "jest": {
