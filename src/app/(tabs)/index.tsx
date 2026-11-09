@@ -7,12 +7,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ActivitySheet, type SheetTarget } from '@/components/ActivitySheet';
 import { NextCard, NowCard } from '@/components/NowCard';
 import { ProgressCard } from '@/components/ProgressBar';
-import { GapBlock, TimelineBlock } from '@/components/TimelineBlock';
+import { Timeline } from '@/components/Timeline';
 import { errorMessage, repo, type Category, type DayActivity } from '@/data';
 import { greeting } from '@/domain/clock';
 import { progressOf } from '@/domain/progress';
-import { addDays, formatLongDate, fromMinutes, toMinutes, weekStartOf, weekdayOf } from '@/domain/time';
-import { buildTimeline, nowState } from '@/domain/timeline';
+import { addDays, formatLongDate, fromMinutes, weekStartOf, weekdayOf } from '@/domain/time';
+import { nowState } from '@/domain/timeline';
 import { useNow } from '@/hooks/useNow';
 import { useRepoQuery } from '@/hooks/useRepoQuery';
 import { colors, fonts, radius, spacing } from '@/theme';
@@ -32,7 +32,7 @@ export default function HoyScreen() {
   const [target, setTarget] = useState<SheetTarget | null>(null);
   const [toggleError, setToggleError] = useState<string | null>(null);
   const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
-  const nowY = useRef<number | null>(null);
+  const timelineY = useRef(0);
   const scrolled = useRef(false);
 
   const categories = cats.data ?? [];
@@ -46,7 +46,6 @@ export default function HoyScreen() {
   );
   const state = nowState(todays, nowMinutes, tomorrowFirst);
   const progress = progressOf(todays);
-  const timeline = useMemo(() => buildTimeline(todays), [todays]);
 
   async function toggle(a: DayActivity) {
     setToggleError(null);
@@ -102,44 +101,21 @@ export default function HoyScreen() {
         <Text style={styles.section}>TU DÍA</Text>
         {toggleError ? <Text style={styles.error}>{toggleError}</Text> : null}
 
-        <View>
-          {timeline.map((item) => {
-            const slot = item.kind === 'gap' ? item : item.activity;
-            const start = toMinutes(slot.start_time);
-            const end = toMinutes(slot.end_time);
-            const isNow = start <= nowMinutes && nowMinutes < end;
-            const onLayout = isNow
-              ? (e: { nativeEvent: { layout: { y: number } } }) => {
-                  nowY.current = e.nativeEvent.layout.y;
-                  if (!scrolled.current) {
-                    scrolled.current = true;
-                    // La línea de tiempo empieza tras la cabecera: desplazar para dejar el bloque actual a la vista
-                    setTimeout(() => scrollRef.current?.scrollTo({ y: Math.max(0, (nowY.current ?? 0) + 260), animated: true }), 300);
-                  }
-                }
-              : undefined;
-            if (item.kind === 'gap') {
-              return (
-                <View key={`gap-${item.start_time}`} onLayout={onLayout}>
-                  <GapBlock gap={item} isNow={isNow} />
-                </View>
-              );
-            }
-            const a = item.activity;
-            return (
-              <View key={a.id} onLayout={onLayout}>
-                <TimelineBlock
-                  activity={a}
-                  category={categoryOf(a.category_id)}
-                  isNow={isNow}
-                  isPast={end <= nowMinutes}
-                  canCheck
-                  onPress={() => setTarget({ mode: 'edit', activity: a })}
-                  onToggle={() => toggle(a)}
-                />
-              </View>
-            );
-          })}
+        <View onLayout={(e) => (timelineY.current = e.nativeEvent.layout.y)}>
+          <Timeline
+            activities={todays}
+            categoryOf={categoryOf}
+            nowMinutes={nowMinutes}
+            canCheck
+            onPress={(a) => setTarget({ mode: 'edit', activity: a })}
+            onToggle={toggle}
+            onNowLayout={(y) => {
+              if (scrolled.current) return;
+              scrolled.current = true;
+              // Dejar el bloque actual cerca de la parte de arriba
+              setTimeout(() => scrollRef.current?.scrollTo({ y: Math.max(0, timelineY.current + y - 140), animated: true }), 300);
+            }}
+          />
         </View>
       </ScrollView>
 
