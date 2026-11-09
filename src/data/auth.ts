@@ -37,5 +37,8 @@ export async function signIn(email: string, password: string): Promise<void> {
 
 export async function signOut(): Promise<void> {
   await clearReadCache().catch(() => {});
+  // Sin sesión no debe quedar ningún aviso programado
+  const { cancelAll } = await import('@/notifications');
+  await cancelAll().catch(() => {});
   if (supabase) await supabase.auth.signOut();
 }

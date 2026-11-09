@@ -11,6 +11,7 @@ import { auth, errorMessage, repo, usingMockData, type Weekday } from '@/data';
 import { weekdayShort } from '@/domain/time';
 import { useRepoQuery } from '@/hooks/useRepoQuery';
 import { useSession } from '@/hooks/useSession';
+import { scheduledCount, sendTest } from '@/notifications';
 import { colors, fonts, radius, spacing } from '@/theme';
 
 const WEEKDAYS: Weekday[] = [1, 2, 3, 4, 5, 6, 7];
@@ -20,6 +21,18 @@ export default function AjustesScreen() {
   const q = useRepoQuery(() => repo.getSettings(), 'settings');
   const s = q.data;
   const [error, setError] = useState<string | null>(null);
+  const [testMsg, setTestMsg] = useState<string | null>(null);
+
+  async function test() {
+    setTestMsg(null);
+    const ok = await sendTest();
+    if (!ok) {
+      setTestMsg('Sin permiso. Actívalo en Ajustes del iPhone → Expo Go → Notificaciones.');
+      return;
+    }
+    const n = await scheduledCount();
+    setTestMsg(`Llegará en 5 segundos (bloquea el móvil para verla). Avisos programados: ${n}.`);
+  }
 
   async function update(patch: Parameters<typeof repo.updateSettings>[0]) {
     setError(null);
@@ -48,10 +61,15 @@ export default function AjustesScreen() {
         <View style={styles.card}>
           <SwitchRow
             label="Notificaciones"
-            hint="Aviso al empezar cada actividad (las que tengan Aviso activado)"
+            hint="Aviso al empezar cada actividad (las que tengan Aviso) y recordatorio de planificación"
             value={s?.notifications_enabled ?? true}
             onChange={(v) => update({ notifications_enabled: v })}
           />
+          <Pressable onPress={test} style={styles.testBtn}>
+            <Ionicons name="notifications-outline" size={18} color={colors.accent} />
+            <Text style={styles.testText}>Enviar notificación de prueba</Text>
+          </Pressable>
+          {testMsg ? <Text style={styles.hint}>{testMsg}</Text> : null}
         </View>
 
         <Text style={styles.section}>RECORDATORIO DE PLANIFICACIÓN</Text>
@@ -122,6 +140,8 @@ const styles = StyleSheet.create({
   dayOn: { backgroundColor: colors.accent },
   dayText: { color: colors.textMuted, fontFamily: fonts.display, fontSize: 16 },
   hint: { color: colors.textFaint, fontFamily: fonts.regular, fontSize: 12 },
+  testBtn: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.md, paddingVertical: spacing.xs },
+  testText: { color: colors.accent, fontFamily: fonts.semibold, fontSize: 15 },
   link: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   linkText: { flex: 1, color: colors.text, fontFamily: fonts.medium, fontSize: 16 },
   email: { color: colors.text, fontFamily: fonts.medium, fontSize: 15 },

@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { PrimaryButton, TextButton } from '@/components/form';
+import { DangerButton, PrimaryButton, SecondaryButton } from '@/components/form';
 import { ProgressCard } from '@/components/ProgressBar';
 import { WeekDayCard } from '@/components/WeekDayCard';
 import { errorMessage, repo, type DayActivity, type ISODate, type Week } from '@/data';
@@ -154,12 +154,12 @@ export default function SemanaScreen() {
 
   function confirmDelete() {
     Alert.alert(
-      'Borrar planificación',
-      `Se borrarán todas las actividades y eventos de la semana del ${formatShortDate(weekStart)}. Quedará sin planificar y podrás volver a planificarla.`,
+      'Eliminar semana',
+      `Se borrarán todas las actividades y eventos de la semana del ${formatShortDate(weekStart)} al ${formatShortDate(weekEnd)}. Quedará vacía, sin planificar, y podrás volver a planificarla cuando quieras.`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
-          text: 'Borrar',
+          text: 'Eliminar',
           style: 'destructive',
           onPress: () => repo.deleteWeek(weekStart).catch((e) => Alert.alert('No se pudo borrar', errorMessage(e))),
         },
@@ -230,14 +230,16 @@ export default function SemanaScreen() {
                 </Stagger>
               ))}
               {isFuture ? (
-                <View style={styles.futureActions}>
-                  <TextButton
-                    title="Volver a planificar"
-                    color={colors.accent}
-                    onPress={() => router.push({ pathname: '/planificar', params: { week: weekStart } })}
-                  />
-                  <TextButton title="Borrar planificación" color={colors.danger} onPress={confirmDelete} />
-                </View>
+                <Stagger index={8} animKey={weekStart}>
+                  <View style={styles.futureActions}>
+                    <SecondaryButton
+                      title="Volver a planificar"
+                      icon="refresh"
+                      onPress={() => router.push({ pathname: '/planificar', params: { week: weekStart } })}
+                    />
+                    <DangerButton title="Eliminar semana" icon="trash-outline" onPress={confirmDelete} />
+                  </View>
+                </Stagger>
               ) : null}
             </>
           )}
@@ -285,5 +287,5 @@ const styles = StyleSheet.create({
   },
   emptyTitle: { color: colors.text, fontFamily: fonts.display, fontSize: 24 },
   emptyText: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 14, textAlign: 'center' },
-  futureActions: { flexDirection: 'row', justifyContent: 'space-around' },
+  futureActions: { gap: spacing.sm, marginTop: spacing.lg },
 });

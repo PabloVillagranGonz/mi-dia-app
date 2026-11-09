@@ -1,5 +1,6 @@
 // Piezas de formulario reutilizables (hojas de edición, rutina, ajustes).
 
+import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Switch, Text, TextInput, View, type TextInputProps } from 'react-native';
@@ -91,6 +92,26 @@ export function PrimaryButton({ title, onPress, disabled }: { title: string; onP
   );
 }
 
+/** Botón de acción peligrosa: contorno rojo a todo el ancho. */
+export function DangerButton({ title, icon, onPress }: { title: string; icon?: keyof typeof Ionicons.glyphMap; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.danger, pressed && { backgroundColor: 'rgba(229,83,75,0.12)' }]}>
+      {icon ? <Ionicons name={icon} size={18} color={colors.danger} /> : null}
+      <Text style={styles.dangerText}>{title}</Text>
+    </Pressable>
+  );
+}
+
+/** Botón secundario: contorno gris a todo el ancho. */
+export function SecondaryButton({ title, icon, onPress }: { title: string; icon?: keyof typeof Ionicons.glyphMap; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.secondary, pressed && { backgroundColor: colors.cardRaised }]}>
+      {icon ? <Ionicons name={icon} size={18} color={colors.text} /> : null}
+      <Text style={styles.secondaryText}>{title}</Text>
+    </Pressable>
+  );
+}
+
 export function TextButton({ title, onPress, color = colors.textMuted }: { title: string; onPress: () => void; color?: string }) {
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.textButton, pressed && { opacity: 0.6 }]}>
@@ -133,6 +154,28 @@ const styles = StyleSheet.create({
   switchHint: { color: colors.textFaint, fontFamily: fonts.regular, fontSize: 12, marginTop: 2 },
   primary: { backgroundColor: colors.accent, borderRadius: radius.md, paddingVertical: 16, alignItems: 'center' },
   primaryText: { color: colors.text, fontFamily: fonts.bold, fontSize: 16 },
+  danger: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderWidth: 1.5,
+    borderColor: colors.danger,
+    borderRadius: radius.md,
+    paddingVertical: 15,
+  },
+  dangerText: { color: colors.danger, fontFamily: fonts.bold, fontSize: 16 },
+  secondary: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingVertical: 15,
+  },
+  secondaryText: { color: colors.text, fontFamily: fonts.semibold, fontSize: 16 },
   textButton: { paddingVertical: spacing.md, alignItems: 'center' },
   textButtonText: { fontFamily: fonts.semibold, fontSize: 15 },
   error: { color: colors.danger, fontFamily: fonts.medium, fontSize: 14 },

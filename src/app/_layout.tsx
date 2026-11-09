@@ -15,6 +15,7 @@ import { View } from 'react-native';
 
 import { useEnsureCurrentWeek } from '@/hooks/useEnsureCurrentWeek';
 import { useSession } from '@/hooks/useSession';
+import { useNotifications } from '@/notifications';
 import { colors } from '@/theme';
 
 export default function RootLayout() {
@@ -29,6 +30,7 @@ export default function RootLayout() {
   const session = useSession();
   const loggedIn = !!session;
   useEnsureCurrentWeek(loggedIn);
+  useNotifications(loggedIn && fontsLoaded);
 
   if (!fontsLoaded || session === undefined) {
     return <View style={{ flex: 1, backgroundColor: colors.bg }} />;

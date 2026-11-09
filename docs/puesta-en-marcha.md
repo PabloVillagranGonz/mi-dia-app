@@ -66,11 +66,13 @@ Qué hace ese script:
 ## 6. Abrir la app en el iPhone (Expo Go)
 
 1. [ ] Instala **Expo Go** desde la App Store.
-2. [ ] En el Mac: `npm install` (solo la primera vez) y `npx expo start`.
-3. [ ] Con el iPhone en la **misma wifi** que el Mac, escanea el QR con la **cámara** → se abre en Expo Go.
+2. [ ] Cuenta gratuita de Expo (https://expo.dev/signup). Inicia sesión **con la misma cuenta** en el Mac (`npx expo login`, comprobar con `npx expo whoami`) y en la app Expo Go (perfil → Log in). Sin esto Expo Go no abre el proyecto.
+   - Si haces `npx expo login` con el servidor en marcha, reinícialo (`Ctrl+C` y `npx expo start`).
+3. [ ] En el Mac: `npm install` (solo la primera vez) y `npx expo start`.
+4. [ ] Con el iPhone en la **misma wifi** que el Mac, escanea el QR con la **cámara** → se abre en Expo Go.
    - Si no conecta (wifi de la universidad, de un bar…): `npx expo start --tunnel`.
-4. [ ] Primer arranque: email + contraseña. La sesión queda guardada; no lo volverás a pedir.
-5. [ ] Comprueba en Supabase → **Table Editor → categories** que aparecen tus 4 categorías.
+5. [ ] Primer arranque: email + contraseña. La sesión queda guardada; no lo volverás a pedir.
+6. [ ] Comprueba la conexión desde el Mac con `npm run check:supabase`.
 
 **Aviso Expo Go:** solo abre proyectos de la última SDK. El proyecto está en la **SDK 58**. Cuando Expo Go se actualice a la siguiente, habrá que subir de versión (`npx expo install expo@latest && npx expo install --fix`).
 
