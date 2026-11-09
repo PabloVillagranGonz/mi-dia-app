@@ -1,174 +1,134 @@
-# Puesta en marcha — Supabase, app en el iPhone y notificaciones
+# Puesta en marcha y operación
 
-Pasos en orden. Lo hecho está tachado; lo descartado se queda como histórico.
+Cómo está montado Mi Día, cómo se vuelve a montar desde cero y cómo se comprueba que todo va bien.
 
-**App:** https://mi-dia-app-seven.vercel.app · **Supabase:** proyecto `bnqxmgtpqwhaztvpneyx` · **Repo:** `PabloVillagranGonz/mi-dia-app`
+**App:** https://mi-dia-app-seven.vercel.app · **Supabase:** `bnqxmgtpqwhaztvpneyx` (West EU 2) · **Repo:** `PabloVillagranGonz/mi-dia-app` · **Google Cloud:** proyecto «Mi Dia» (`mi-dia-514216`)
 
 ---
 
-## Estado
+## Estado (comprobado el 9-11-2026)
 
-### Hecho
-- ~~Repositorio en GitHub~~ (§1)
-- ~~Proyecto Supabase, tablas, RLS y alta automática de la rutina~~ (§2–3)
-- ~~Login con email + contraseña y registro cerrado~~ (§4)
-- ~~Conectar la app (`.env.local`)~~ (§5)
-- ~~Migración `0002_apply_day_changes.sql`~~ (§9)
-- ~~Decidir cómo usarla sin el Mac → PWA en Vercel~~ (§8)
-- ~~Versión web en Vercel, instalada en el iPhone~~ (§10)
-- ~~Márgenes del notch / indicador de inicio en la PWA~~ (§10)
-- ~~Avisos Web Push: tablas, Edge Function, secretos, cron~~ (§11) — probado en el iPhone
-- ~~App sin conexión (service worker)~~ (§10)
-- ~~Icono propio~~
-- ~~Tests SQL de los avisos (`npm run test:sql`)~~
-- ~~Segundo usuario dado de alta con su propia rutina~~ (§12)
+| Pieza | Estado | Detalle |
+|---|---|---|
+| Base de datos | ✅ | Migraciones `0001` → `0007` aplicadas · RLS en todas las tablas |
+| Auth | ✅ | Email + contraseña · **registro cerrado** · 2 usuarios |
+| App web (PWA) | ✅ | Vercel publica cada push a `main` · instalada en el iPhone · funciona sin conexión |
+| Avisos Web Push | ✅ | Función `push` + cron `mi-dia-push` cada minuto · probado en el iPhone |
+| Google Calendar | ✅ | Funciones `gcal-oauth`, `gcal-sync`, `gcal-webhook` + cron `mi-dia-gcal-sync` cada 15 min · probado con Running |
+| Calidad | ✅ | `typecheck`, `lint`, 110 tests de Jest y 14 tests SQL en verde |
 
 ### Pendiente
-- ~~Google Calendar → Mi Día~~ (§13) — conectado y probado con Running
-- [ ] **Panel `/admin`** para ti: estadísticas y compartir cosas con los usuarios (más adelante)
+- [ ] **Panel `/admin`**: crear usuarios desde la app (sin entrar en Supabase), estadísticas y compartir cosas con los usuarios.
+- [ ] **Usuario de demostración** para el portfolio: credenciales públicas, datos de ejemplo y sin poder estropear nada.
 
-### Descartado / solo para desarrollo
-- Expo Go en el iPhone (§6) y notificaciones locales (§7): siguen funcionando en nativo, pero el uso diario es la PWA.
-- Build nativa con Apple Developer (99 €/año) (§8).
-
----
-
-## 1. Repositorio
-
-- [x] ~~Inicializado con el remoto `https://github.com/PabloVillagranGonz/mi-dia-app.git`.~~
-- [x] ~~Primer commit y `git push -u origin main`.~~
-- `.env.local` está en `.gitignore`: **las claves nunca se suben**.
+### Descartado
+- Build nativa con Apple Developer (99 €/año) y uso diario con Expo Go: la PWA cubre el uso diario (§4). El código sigue compilando para nativo.
+- Widget de iOS / Live Activity: no es posible en una PWA.
 
 ---
 
-## 2. Proyecto Supabase
+## 1. Repositorio y secretos
 
-1. [x] ~~Entra en https://supabase.com → **New project** (nombre `mi-dia`, región West EU). Guarda la contraseña de la base de datos en tu gestor.~~
-2. [x] ~~Espera a que termine de crearse.~~
+- Remoto: `https://github.com/PabloVillagranGonz/mi-dia-app.git`. Cada push a `main` despliega la web (§4).
+- **Nunca se suben:** `.env.local` y `client_secret_*.json` (credencial de Google) están en `.gitignore`. GitHub tiene además *push protection*: rechaza un push que contenga secretos.
+- Dónde vive cada secreto:
 
-## 3. Crear las tablas
+| Secreto | Dónde |
+|---|---|
+| `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_KEY` (públicas) | `.env.local` y Vercel → Environment Variables (tipo *Config*) |
+| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `CRON_SECRET` | Supabase → Edge Functions → Secrets |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GCAL_STATE_SECRET`, `GCAL_ALLOWED_USER_IDS`, `APP_URL` | Supabase → Edge Functions → Secrets |
+| `push_cron_secret` (mismo valor que `CRON_SECRET`) | Supabase → Vault (lo leen los crons) |
+| Contraseña de la base de datos | Gestor de contraseñas |
 
-1. [x] ~~**SQL Editor** → pega `supabase/migrations/0001_init.sql` → **Run**.~~
-2. [x] ~~Comprueba en **Table Editor** las 5 tablas con **RLS enabled**.~~
+Subir secretos sin pegarlos en ningún sitio: `npx supabase secrets set --env-file <archivo> --remote=bnqxmgtpqwhaztvpneyx` y borrar el archivo después.
 
-Qué hace ese script:
-- Crea las 5 tablas del spec (+ `edited` en `day_activities` y `notifications_enabled` en `settings`).
-- Activa RLS: cada usuario solo ve sus filas.
-- Crea un trigger: **cuando se crea un usuario** se crean sus 4 categorías, sus ajustes y la rutina base de lunes a viernes.
+---
 
-> Si un usuario se creó **antes** de lanzar el script, el trigger no se ejecutó:
-> ```sql
-> select public.seed_user(id) from auth.users where email = 'SU_EMAIL';
-> ```
+## 2. Supabase
 
-## 4. Login con email y contraseña
+### Migraciones
 
-> Sin SMTP propio Supabase no deja editar los correos, así que el login es **email + contraseña** (sin correos ni deep links).
+Se ejecutan en orden. Con la CLI (requiere `npx supabase login` una vez en la app Terminal):
 
-1. [x] ~~**Authentication → Sign In / Providers → Email** activado.~~
-2. [x] ~~**Authentication → Users → Add user** con tu email, contraseña nueva y **Auto Confirm User**.~~
-3. [x] ~~Comprobado: `categories` 4 filas · `template_activities` 49 · `settings` 1.~~
-4. [x] ~~**Registro cerrado** (*Allow new users to sign up* desactivado). Los usuarios nuevos se crean a mano (§12).~~
+```bash
+npx supabase db query --remote=bnqxmgtpqwhaztvpneyx --yes -f supabase/migrations/000X_….sql
+```
 
-## 5. Conectar la app
+| Archivo | Qué hace |
+|---|---|
+| `0001_init.sql` | Tablas (`categories`, `template_activities`, `weeks`, `day_activities`, `settings`), RLS y trigger de alta: cada usuario nuevo recibe 4 categorías, ajustes y una rutina de ejemplo |
+| `0002_apply_day_changes.sql` | `apply_day_changes()`: borra, recorta e inserta las actividades de un día en una sola transacción |
+| `0003_web_push.sql` | `push_subscriptions`, `push_log` y `claim_due_push()` (mismas reglas que `src/domain/notifications.ts`) |
+| `0004_push_cron.sql` | Cron `mi-dia-push` cada minuto → función `push` |
+| `0005_google_calendar.sql` | `google_accounts`, `google_calendars`, `google_events` (tokens solo para el servidor), `external_id`, `apply_day_changes_as()`, cerrojo de sincronización y Realtime en `day_activities` |
+| `0006_gcal_cron.sql` | Cron `mi-dia-gcal-sync` cada 15 min → función `gcal-sync` |
+| `0007_gcal_hidden.sql` | Ocultar calendarios en Ajustes |
 
-1. [x] ~~Copiar **Project URL** y **Publishable key** (nunca la `secret` / `service_role`).~~
-2. [x] ~~Crear `.env.local` con `EXPO_PUBLIC_SUPABASE_URL` y `EXPO_PUBLIC_SUPABASE_KEY`.~~
-3. [x] ~~`npx expo start --clear`.~~
+> **0004 y 0006** leen el secreto de Vault. Antes de ejecutarlas por primera vez: `select vault.create_secret('<CRON_SECRET>', 'push_cron_secret');` en una consulta aparte (no en el archivo, que está en git).
 
-> Sin `.env.local` la app funciona con **datos de prueba** (`src/data/mock/`).
+### Edge Functions
 
-## 6. Expo Go (solo desarrollo)
+Todas se despliegan **sin verificación de JWT** (cada una comprueba la sesión, el secreto del cron o el token del canal por sí misma):
 
-~~Uso diario con Expo Go~~ → sustituido por la PWA (§10). Para probar en nativo:
-- `npx expo start` (o `--tunnel` fuera de casa) y escanear el QR con la cámara. Misma cuenta de Expo en el Mac (`npx expo login`) y en Expo Go.
-- `npm run check:supabase` comprueba la conexión desde el Mac.
-- Expo Go solo abre la última SDK (el proyecto está en la **58**). Cuando se actualice: `npx expo install expo@latest && npx expo install --fix`.
+```bash
+npx supabase functions deploy <nombre> --remote=bnqxmgtpqwhaztvpneyx --no-verify-jwt --use-api
+```
 
-## 7. Notificaciones locales (solo nativo)
-
-~~Uso diario~~ → en la PWA los avisos van por Web Push (§11). En nativo:
-- Al empezar cada actividad con *Aviso*: «Hasta las HH:MM · Siguiente: X». Recordatorio de planificación el día/hora de Ajustes.
-- iOS guarda 64 pendientes: se programan **hoy + mañana** y se recalculan al abrir la app o cambiar algo.
-- Aparecen como de «Expo Go». Al cerrar sesión se cancelan.
-
-## 8. Usarla sin el Mac
-
-| Opción | Coste | Pega |
+| Función | La llama | Para |
 |---|---|---|
-| ~~Apple Developer + EAS Build~~ | 99 €/año | El coste. |
-| ~~Xcode con Apple ID gratis~~ | 0 € | Caduca a los 7 días. |
-| ~~Seguir con Expo Go~~ | 0 € | El Mac encendido con el servidor. |
-| **PWA en Vercel** ✅ | 0 € | Sin widget ni Live Activity. |
+| `push` | Cron cada minuto · botón de prueba en Ajustes | Enviar los avisos Web Push |
+| `gcal-oauth` | Ajustes · Google (vuelta de OAuth vía `/api/gcal/callback` en Vercel) | Conectar, estado y desconectar Google |
+| `gcal-sync` | Cron cada 15 min · Ajustes al cambiar calendarios | Sincronizar y reconstruir los días |
+| `gcal-webhook` | Google (`events.watch`) | Aviso de cambio → sincroniza al momento |
 
-**Decisión (9-11-2026): app web instalable (PWA) en Vercel.** Ver §10.
+**Si se cambia algo de `src/domain/`:** `npm run build:functions` y volver a desplegar las tres `gcal-*` (`npm test` falla si el paquete está desactualizado).
 
-## 9. Migraciones de Supabase
+---
 
-- [x] ~~`0001_init.sql`~~
-- [x] ~~`0002_apply_day_changes.sql`: añadir evento, restaurar día y aplicar rutina en una sola transacción.~~
-- [x] ~~`0003_web_push.sql` + función `push` + `0004_push_cron.sql` (§11).~~
+## 3. Usuarios
 
-Para las siguientes: `npx supabase db query --remote=bnqxmgtpqwhaztvpneyx --yes -f supabase/migrations/000X_….sql` (requiere `npx supabase login` en la app Terminal).
+El registro está **cerrado** (Authentication → Sign In / Providers → *Allow new users to sign up* desactivado). Cada usuario tiene sus propios datos (RLS).
 
-## 10. Versión web (PWA) en Vercel
+**Dar de alta a alguien** (hasta que exista `/admin`):
+1. **Authentication → Users → Add user → Create new user**: email, contraseña inicial y **Auto Confirm User**.
+2. Comprobar en **Table Editor → `settings`** que tiene fila (el trigger le crea categorías, ajustes y rutina de ejemplo).
+3. Pasarle la URL y la contraseña por un canal privado. En su iPhone: Safari → Compartir → Añadir a pantalla de inicio → entrar → Ajustes → «Activar avisos en este dispositivo».
 
-La misma app se compila para la web y se sirve gratis en Vercel. **Cada `git push` a `main` la publica.**
+**Rutina propia desde el principio:** sustituir sus filas de `template_activities` por SQL antes de que entre. Si ya entró y no ha marcado nada, borrar sus `weeks` para que la app las regenere.
 
-**Configuración (hecha):**
-1. [x] ~~Vercel → importar `mi-dia-app` (framework *Other*; build y salida en `vercel.json`).~~
-2. [x] ~~**Environment Variables:** `EXPO_PUBLIC_SUPABASE_URL` y `EXPO_PUBLIC_SUPABASE_KEY` como **Config**, no *Secret* (Vercel no admite *Secret* con prefijo público; además, estos valores van dentro de la app).~~
-3. [x] ~~Deploy → https://mi-dia-app-seven.vercel.app~~
+**Si un usuario se creó antes de la migración 0001** (sin datos): `select public.seed_user(id) from auth.users where email = '…';`
 
-**En el iPhone:** Safari → Compartir → **Añadir a pantalla de inicio** → iniciar sesión una vez. Si cambia el icono, hay que borrarla y volver a añadirla.
+> La app aún no tiene «cambiar contraseña»: **Authentication → Users → ⋯ → Reset password**.
 
-**Diferencias con la versión nativa:**
-- Avisos por Web Push (§11).
-- Diálogos de confirmación del navegador (`src/lib/alert.web.ts`).
-- Selector de hora `<input type="time">` (`src/components/TimePicker.web.tsx`).
-- Márgenes del notch e indicador de inicio por CSS (`public/index.html` + `WebSafeArea.web.tsx`); en modo app instalada `#root` toma el alto de la pantalla.
+---
 
-**Sin conexión:** el service worker (`public/sw.js`) guarda la app (~4 MB). En cada build, `scripts/build-sw.mjs` mete en `dist/sw.js` la versión y la lista de archivos. La versión nueva se descarga sola la siguiente vez que se abre con conexión.
+## 4. App web (PWA) en Vercel
 
-**Probar en local:** `npx expo export -p web && node scripts/build-sw.mjs && npx serve -s dist`.
+- **Configuración:** proyecto `mi-dia-app` importado en Vercel (framework *Other*; build y salida en `vercel.json`). Variables `EXPO_PUBLIC_SUPABASE_URL` y `EXPO_PUBLIC_SUPABASE_KEY` como *Config*.
+- **Build:** `npx expo export -p web && node scripts/build-sw.mjs`. `vercel.json` reenvía `/api/gcal/*` a la función `gcal-oauth` y el resto a `index.html`.
+- **En el iPhone:** Safari → Compartir → **Añadir a pantalla de inicio** → iniciar sesión una vez. Si cambia el icono, hay que borrarla y volver a añadirla.
+- **Actualizaciones:** la versión nueva se descarga sola la siguiente vez que se abre con conexión. Si se quiere ya: cerrarla del todo y abrirla.
+- **Sin conexión:** el service worker (`public/sw.js`) guarda la app; `scripts/build-sw.mjs` le mete la versión y la lista de archivos en cada build. Las lecturas de hoy y de la semana se guardan en el dispositivo.
+- **Variantes web** (`*.web.ts(x)`): diálogos del navegador, `<input type="time">`, márgenes del notch por CSS, avisos por Web Push.
+- **Probar el build en local:** `npx expo export -p web && node scripts/build-sw.mjs && npx serve -s dist`.
 
-## 11. Avisos en la versión web (Web Push)
+---
+
+## 5. Avisos (Web Push)
 
 ```
-pg_cron (cada minuto) → Edge Function `push` → claim_due_push() → Web Push → service worker → aviso
+pg_cron (cada minuto) → push → claim_due_push() → Web Push → service worker → aviso en el iPhone
 ```
 
-- `0003_web_push.sql`: `push_subscriptions` (un dispositivo por fila), `push_log` (avisos enviados, para no repetir) y `claim_due_push()` (mismas reglas que `src/domain/notifications.ts`).
-- `supabase/functions/push/index.ts`: envía lo pendiente (cron, cabecera `x-cron-secret`) o una prueba (botón de Ajustes, con la sesión del usuario). Borra suscripciones caducadas.
-- `0004_push_cron.sql`: job `mi-dia-push` (`pg_cron` + `pg_net`); lee el secreto de Vault (`push_cron_secret`).
-- Cliente: `src/notifications/webPush.ts` y `src/components/WebPushSettings.web.tsx`.
+- Al empezar cada actividad con *Aviso*: «Hasta las HH:MM · Siguiente: X». Recordatorio de planificación el día y la hora de Ajustes.
+- Se activan **por dispositivo** en Ajustes («Activar avisos en este dispositivo»). En el iPhone solo con la app abierta desde la pantalla de inicio (iOS 16.4+).
+- Cada aviso se apunta en `push_log` y sale una sola vez; si el cron se retrasa hasta 3 minutos, sale igualmente.
+- **Regenerar las claves VAPID** (no hay copia fuera de Supabase): `npx web-push generate-vapid-keys`, cambiar la pública en `src/notifications/webPush.ts`, subir los secretos y volver a activar los avisos en cada dispositivo.
 
-**Puesta en marcha (hecha):**
-1. [x] ~~Ejecutar `0003_web_push.sql`.~~
-2. [x] ~~`npx supabase functions deploy push --remote=bnqxmgtpqwhaztvpneyx --no-verify-jwt --use-api`.~~
-3. [x] ~~Secretos: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (`https://mi-dia-app-seven.vercel.app`), `CRON_SECRET`.~~
-4. [x] ~~`select vault.create_secret('<CRON_SECRET>', 'push_cron_secret');` y `0004_push_cron.sql`.~~
-5. [x] ~~En el iPhone: Ajustes → «Activar avisos en este dispositivo» → prueba → aviso real comprobado (sale una sola vez).~~
+---
 
-**Si hubiera que regenerar las claves VAPID** (no se guarda copia fuera de Supabase): `npx web-push generate-vapid-keys`, cambiar la pública en `src/notifications/webPush.ts`, subir los secretos nuevos y volver a pulsar «Activar avisos» en cada dispositivo.
-
-**Tests:** `npm run test:sql` (PGlite) comprueba que `claim_due_push()` avisa igual que la app.
-
-**Comprobar el cron:** `select * from cron.job_run_details order by start_time desc limit 5;` y `select status_code, content from net._http_response order by created desc limit 5;`
-
-## 12. Añadir usuarios
-
-El registro está cerrado: cada usuario se crea a mano y tiene **sus propios datos** (RLS). Al crearlo, el trigger le genera categorías, ajustes y la rutina base de ejemplo, que luego cambia desde la pestaña Rutina.
-
-1. [ ] **Authentication → Users → Add user → Create new user**: su email y una contraseña inicial; marca **Auto Confirm User**.
-2. [ ] Comprueba en **Table Editor → `settings`** que hay una fila nueva con su `user_id`.
-3. [ ] Pásale la URL y la contraseña por un canal privado. En su iPhone: Safari → Añadir a pantalla de inicio → entrar → Ajustes → «Activar avisos en este dispositivo».
-
-**Rutina propia desde el principio** (en vez de la de ejemplo): crear el usuario, sustituir sus filas de `template_activities` por SQL antes de que entre (si ya entró y no ha marcado nada, borrar sus `weeks` para que la app las regenere).
-
-> La app aún no tiene «cambiar contraseña». Si la quiere cambiar: **Authentication → Users → ⋯ → Reset password** o se añade la opción en Ajustes.
-
-## 13. Google Calendar → Mi Día (issue #1)
+## 6. Google Calendar → Mi Día
 
 ```
 Google ──aviso──> gcal-webhook ─┐
@@ -176,23 +136,64 @@ pg_cron cada 15 min ──> gcal-sync ─┼─> google_events ─> rebuildDay �
 Ajustes ──> gcal-oauth (conectar / estado / desconectar)
 ```
 
-Solo para los usuarios de `GCAL_ALLOWED_USER_IDS`; al resto no les aparece la sección en Ajustes.
+- **Solo lectura** y solo para los usuarios de `GCAL_ALLOWED_USER_IDS` (ahora mismo, tú). Al resto no les aparece la sección.
+- Ventana: semana actual y siguiente. Los eventos **de todo el día no se traen**: hay que ponerles hora.
+- **Google siempre gana:** recorta rutina y eventos manuales. Al mover o borrar en Google, la rutina vuelve solo en el tramo que queda libre. «Hecha» y la nota se conservan, también si el evento cambia de día.
+- En Ajustes: activar calendarios, elegir su categoría y **ocultar** los que no se usan (ojo tachado; «Mostrar ocultos» para recuperarlos).
 
-**Google Cloud** (proyecto «Mi Dia», `mi-dia-514216`):
-1. [x] ~~API de Google Calendar activada.~~
-2. [x] ~~Pantalla de permisos: externa, dominio `mi-dia-app-seven.vercel.app`, privacidad `/privacidad.html`, permisos `calendar.readonly` y email.~~
-3. [x] ~~**Público → Publicar app** (en «Prueba» Google corta la conexión cada 7 días). Sin verificar sale un aviso al conectar: «Google no ha verificado esta app» → Configuración avanzada → Ir a Mi Día.~~
-4. [x] ~~**Clientes → Crear cliente → Aplicación web**. URI de redirección: `https://mi-dia-app-seven.vercel.app/api/gcal/callback` (Vercel la reenvía a la función `gcal-oauth`). Descargar el JSON (no pegar el secreto en ningún chat).~~
+**Configuración (hecha):**
+- **Google Cloud:**
+  - API de Calendar activada.
+  - Pantalla de permisos externa **en producción y sin verificar**. Al conectar sale «Google no ha verificado esta app» → Configuración avanzada → Ir a Mi Día. No hace falta verificar la marca: es solo para apps públicas.
+  - Permisos: `calendar.readonly` y email.
+  - Cliente OAuth «Aplicación web» con la URI `https://mi-dia-app-seven.vercel.app/api/gcal/callback`.
+- **Supabase:**
+  - Migraciones `0005`, `0006` y `0007`.
+  - Secretos de Google (§1).
+  - Las tres funciones `gcal-*`.
 
-**Supabase:**
-5. [x] ~~Ejecutar `0005_google_calendar.sql`.~~ Después, `0007_gcal_hidden.sql` (ocultar calendarios en Ajustes).
-6. [x] Secretos (Edge Functions → Secrets): `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` (del JSON), `GCAL_STATE_SECRET` (`openssl rand -base64 32`), `GCAL_ALLOWED_USER_IDS` (tu `user_id`), `APP_URL` = `https://mi-dia-app-seven.vercel.app`. `CRON_SECRET` ya está (el de `push`).
-7. [x] Desplegar: `for f in gcal-oauth gcal-sync gcal-webhook; do npx supabase functions deploy $f --remote=bnqxmgtpqwhaztvpneyx --no-verify-jwt --use-api; done`
-8. [x] Ejecutar `0006_gcal_cron.sql` (usa el `push_cron_secret` de Vault).
-9. [x] En el iPhone: Ajustes → Google Calendar → **Conectar con Google**. Comprobar que «Charanga Jaleo» (Música) y «Running» (Salud) salen activos.
+**Dar acceso a otro usuario:** añadir su `user_id` a `GCAL_ALLOWED_USER_IDS` (separados por comas). Google admite hasta 100 usuarios sin verificar la app.
 
-**Comprobar:** crear un evento hoy en Google → aparece en ≤ 30 s. Moverlo → la rutina vuelve en el hueco. Logs: Supabase → Edge Functions → `gcal-sync` / `gcal-webhook` → Logs.
+**Quitarlo:** Ajustes → Desconectar (revoca el permiso, borra sus datos y restaura la rutina) y `select cron.unschedule('mi-dia-gcal-sync');`.
 
-**Si se cambia algo de `src/domain/`:** `npm run build:functions` y volver a desplegar las tres funciones (`npm test` avisa si el paquete está desactualizado).
+---
 
-**Quitarlo:** Ajustes → Desconectar; `select cron.unschedule('mi-dia-gcal-sync');`. La migración es aditiva (`external_id` admite nulos).
+## 7. Desarrollo local
+
+```bash
+npm install
+npm run web          # o npm start (Expo)
+```
+
+- Sin `.env.local` la app usa **datos de prueba** en memoria (`src/data/mock/`); con claves, Supabase.
+- Instalar paquetes siempre con `npx expo install`.
+- **Antes de subir:** `npm run typecheck && npm run lint && npm test && npm run test:sql`.
+- **Nativo (solo pruebas):** `npx expo start` y escanear el QR con Expo Go (misma cuenta de Expo en el Mac y en el móvil). Expo Go solo abre la última SDK (el proyecto está en la **58**); al actualizar: `npx expo install expo@latest && npx expo install --fix`. En nativo los avisos son locales (hoy + mañana; iOS admite 64 pendientes).
+- `npm run check:supabase` comprueba la conexión con Supabase desde el Mac.
+
+---
+
+## 8. Comprobar que todo va bien
+
+En Supabase → SQL Editor (o `npx supabase db query --remote=… "…"`):
+
+```sql
+-- Crons activos y sus últimas ejecuciones
+select jobname, schedule, active from cron.job;
+select status, start_time from cron.job_run_details order by start_time desc limit 5;
+
+-- Respuestas de las funciones llamadas por los crons (push: {"due":…}; gcal-sync: {"users":…})
+select status_code, left(content::text, 120), created from net._http_response order by created desc limit 5;
+
+-- Datos sanos: no debería devolver nada (actividades solapadas desde hoy)
+select a.user_id, a.date, a.title, b.title
+from day_activities a join day_activities b
+  on a.user_id = b.user_id and a.date = b.date and a.id < b.id
+ and a.start_time < b.end_time and b.start_time < a.end_time
+where a.date >= current_date;
+
+-- Google: calendarios, eventos traídos y caducidad de los canales de aviso
+select summary, enabled, hidden, channel_expires_at from google_calendars order by summary;
+```
+
+Logs de las funciones: Supabase → Edge Functions → `<función>` → **Logs**.

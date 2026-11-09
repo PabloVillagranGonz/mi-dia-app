@@ -13,7 +13,7 @@ Este documento junta todas las decisiones tomadas. La interfaz sale de Emergent 
 | Backend | **Supabase** (Postgres + Auth), usado directamente desde la app con `@supabase/supabase-js`. Sin servidor propio. |
 | Auth | **Email + contraseña** (usuario creado a mano en Supabase, registro cerrado). Sin magic link ni OTP: el correo por defecto de Supabase solo manda enlaces y los deep links en Expo Go dan problemas. Sesión persistida en AsyncStorage → login una sola vez. |
 | Notificaciones | **Web (PWA, uso diario):** Web Push enviado por Supabase (pg_cron cada minuto → Edge Function `push`). **Nativo:** `expo-notifications` locales. Ver §4.5. |
-| Instalación | **PWA en Vercel** (gratis): `git push` a `main` publica; en el iPhone, Safari → «Añadir a pantalla de inicio». Expo Go queda solo para desarrollo. Ver `docs/puesta-en-marcha.md` §10. |
+| Instalación | **PWA en Vercel** (gratis): `git push` a `main` publica; en el iPhone, Safari → «Añadir a pantalla de inicio». Expo Go queda solo para desarrollo. Ver `docs/puesta-en-marcha.md` §4. |
 | Zona horaria | `Europe/Madrid`. Formato 24 h. Semana de **lunes a domingo**. Todo el texto en español. |
 
 **Por qué PWA y no app nativa (decisión del 9-11-2026):** instalar una app nativa en el iPhone de forma permanente exige la cuenta de Apple Developer (99 €/año); con Apple ID gratis caduca cada 7 días y Expo Go necesita el Mac encendido. La PWA es gratis, se actualiza sola y admite avisos (Web Push, iOS 16.4+). Lo que se pierde: widget y Live Activity.
