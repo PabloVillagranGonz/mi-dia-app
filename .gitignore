@@ -42,3 +42,4 @@ yarn-error.*
 
 # claves locales
 .env
+supabase/.temp/
