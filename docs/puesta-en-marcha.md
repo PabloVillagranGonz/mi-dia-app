@@ -115,6 +115,8 @@ No requieren nada en Supabase ni cuenta de Apple: se programan en el propio iPho
 
 ## 9. Migraciones pendientes de Supabase
 
+- [ ] `0003_web_push.sql` + función `push` + `0004_push_cron.sql` (ver sección 11).
+
 - [x] `supabase/migrations/0002_apply_day_changes.sql` → SQL Editor → Run. Hace que añadir un evento, restaurar un día o aplicar la rutina se guarden en una sola transacción. Comprobar con `npm run check:supabase`.
 
 ## 10. Versión web (PWA) en Vercel
@@ -130,8 +132,33 @@ La misma app se compila para la web (`npx expo export -p web` → `dist/`) y se 
 **En el iPhone:** abrir esa URL en **Safari** → Compartir → **Añadir a pantalla de inicio**. Se abre a pantalla completa con su icono. Iniciar sesión una vez.
 
 **Diferencias con la versión nativa:**
-- Las notificaciones aún no funcionan en la web (`src/notifications/index.web.ts` no hace nada). Siguiente paso: Web Push con Supabase Edge Functions + `pg_cron`.
+- Las notificaciones van por Web Push (sección 11), no se programan en el dispositivo.
 - Los diálogos de confirmación usan los del navegador (`src/lib/alert.web.ts`).
 - El selector de hora es `<input type="time">` (`src/components/TimePicker.web.tsx`).
 
 **Probar en local:** `npx expo export -p web && npx serve -s dist`.
+
+## 11. Avisos en la versión web (Web Push)
+
+En la web no hay notificaciones locales: las envía el servidor.
+
+```
+pg_cron (cada minuto) → Edge Function `push` → claim_due_push() → Web Push → service worker (public/sw.js) → aviso
+```
+
+- `supabase/migrations/0003_web_push.sql`: tablas `push_subscriptions` (un dispositivo por fila) y `push_log` (avisos ya enviados, para no repetir), y `claim_due_push()`, que aplica las mismas reglas que `src/domain/notifications.ts`.
+- `supabase/functions/push/index.ts`: envía lo pendiente (llamada del cron, cabecera `x-cron-secret`) o una prueba (botón de Ajustes, con la sesión del usuario). Borra las suscripciones caducadas.
+- `supabase/migrations/0004_push_cron.sql`: el job `mi-dia-push` de `pg_cron` + `pg_net`. Lee el secreto de Vault (`push_cron_secret`).
+- Cliente: `src/notifications/webPush.ts` (permiso + suscripción), `src/components/WebPushSettings.web.tsx` (panel de Ajustes).
+
+**Secretos de la función** (Edge Functions → Secrets): `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (`mailto:…`), `CRON_SECRET` (el mismo valor que `push_cron_secret` en Vault). La clave pública VAPID también está en `src/notifications/webPush.ts`; si se cambian las claves, hay que cambiarla allí y volver a activar los avisos en cada dispositivo.
+
+**Puesta en marcha (una vez):**
+1. Ejecutar `0003_web_push.sql`.
+2. Desplegar la función sin verificación de JWT: `npx supabase functions deploy push --project-ref bnqxmgtpqwhaztvpneyx --no-verify-jwt --use-api`.
+3. Poner los secretos: `npx supabase secrets set --project-ref … VAPID_PUBLIC_KEY=… VAPID_PRIVATE_KEY=… VAPID_SUBJECT=mailto:… CRON_SECRET=…`.
+4. `select vault.create_secret('<CRON_SECRET>', 'push_cron_secret');` y después `0004_push_cron.sql`.
+
+**En el iPhone** (iOS 16.4 o posterior): abrir la app **desde el icono de la pantalla de inicio** → Ajustes → «Activar avisos en este dispositivo» → Permitir → «Enviar notificación de prueba».
+
+**Comprobar el cron:** `select * from cron.job_run_details order by start_time desc limit 5;` y `select status_code, content from net._http_response order by created desc limit 5;`

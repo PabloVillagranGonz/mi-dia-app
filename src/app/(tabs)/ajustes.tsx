@@ -13,6 +13,7 @@ import { auth, errorMessage, repo, usingMockData, type Weekday } from '@/data';
 import { weekdayShort } from '@/domain/time';
 import { useRepoQuery } from '@/hooks/useRepoQuery';
 import { useSession } from '@/hooks/useSession';
+import { WebPushSettings } from '@/components/WebPushSettings';
 import { notificationsSupported, scheduledCount, sendTest } from '@/notifications';
 import { colors, fonts, radius, spacing } from '@/theme';
 
@@ -73,7 +74,7 @@ export default function AjustesScreen() {
               <Text style={styles.testText}>Enviar notificación de prueba</Text>
             </Pressable>
           ) : (
-            <Text style={styles.hint}>En la versión web todavía no llegan avisos. Llegarán pronto.</Text>
+            <WebPushSettings />
           )}
           {testMsg ? <Text style={styles.hint}>{testMsg}</Text> : null}
         </View>

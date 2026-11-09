@@ -15,3 +15,4 @@ export type { ActivityInput, Repository, TemplateInput } from './repository';
 export * from './types';
 export { errorMessage, UserError } from './errors';
 export * as auth from './auth';
+export * as push from './push';
