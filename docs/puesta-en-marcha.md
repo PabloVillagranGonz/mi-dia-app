@@ -6,25 +6,25 @@ Pasos en orden. Marca cada uno al terminarlo.
 
 ## 1. Repositorio
 
-- [ ] Ya está inicializado en local con el remoto `https://github.com/PabloVillagranGonz/mi-dia-app.git`.
-- [ ] Primer commit y `git push -u origin main` (cuando revises la estructura).
+- [x] Ya está inicializado en local con el remoto `https://github.com/PabloVillagranGonz/mi-dia-app.git`.
+- [x] Primer commit y `git push -u origin main` (cuando revises la estructura).
 - `.env.local` está en `.gitignore`: **las claves nunca se suben**.
 
 ---
 
 ## 2. Proyecto Supabase
 
-1. [ ] Entra en https://supabase.com → **New project**.
+1. [x] Entra en https://supabase.com → **New project**.
    - Nombre: `mi-dia`.
    - Región: **Central EU (Frankfurt)** o **West EU (Ireland)** (la más cercana a Madrid).
    - Contraseña de la base de datos: guárdala en tu gestor de contraseñas (no la necesita la app).
-2. [ ] Espera a que termine de crearse (1–2 min).
+2. [x] Espera a que termine de crearse (1–2 min).
 
 ## 3. Crear las tablas
 
-1. [ ] Menú izquierdo → **SQL Editor** → **New query**.
-2. [ ] Pega **entero** el contenido de `supabase/migrations/0001_init.sql` y pulsa **Run**.
-3. [ ] Comprueba en **Table Editor** que existen: `categories`, `template_activities`, `weeks`, `day_activities`, `settings`, y que todas muestran el candado de **RLS enabled**.
+1. [x] Menú izquierdo → **SQL Editor** → **New query**.
+2. [x] Pega **entero** el contenido de `supabase/migrations/0001_init.sql` y pulsa **Run**.
+3. [x] Comprueba en **Table Editor** que existen: `categories`, `template_activities`, `weeks`, `day_activities`, `settings`, y que todas muestran el candado de **RLS enabled**.
 
 Qué hace ese script:
 - Crea las 5 tablas del spec (+ `edited` en `day_activities` y `notifications_enabled` en `settings`).
@@ -41,12 +41,12 @@ Qué hace ese script:
 > Cambio del 9-11-2026: sin SMTP propio Supabase no deja editar los correos y el de por defecto solo manda un enlace, así que el login es **email + contraseña** (sin correos ni deep links).
 
 1. [x] **Authentication → Sign In / Providers → Email**: ya está activado.
-2. [ ] **Authentication → Users → Add user → Create new user**:
+2. [x] **Authentication → Users → Add user → Create new user**:
    - Tu email y una contraseña **nueva** (no la de otro servicio). Guárdala en tu gestor.
    - Marca **Auto Confirm User** (así no hace falta correo de confirmación).
-3. [ ] Comprueba en **Table Editor** que se ha creado tu rutina:
+3. [x] Comprueba en **Table Editor** que se ha creado tu rutina:
    - `categories` → 4 filas · `template_activities` → **49 filas** · `settings` → 1 fila.
-4. [ ] **Cerrar el registro** (recomendado): en **Sign In / Providers → User Signups**, desactiva **Allow new users to sign up** y pulsa **Save changes**. La clave publishable va dentro de la app, así que sin esto cualquiera que la tenga podría crearse una cuenta en tu proyecto. Tú sigues pudiendo entrar con tu usuario.
+4. [x] **Cerrar el registro** (recomendado): en **Sign In / Providers → User Signups**, desactiva **Allow new users to sign up** y pulsa **Save changes**. La clave publishable va dentro de la app, así que sin esto cualquiera que la tenga podría crearse una cuenta en tu proyecto. Tú sigues pudiendo entrar con tu usuario.
 
 ## 5. Conectar la app
 
