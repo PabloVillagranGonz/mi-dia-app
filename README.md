@@ -16,6 +16,8 @@
 
 </div>
 
+> **¿Quieres probarla?** Entra en la [app](https://mi-dia-app-seven.vercel.app) con la cuenta de demostración: **`demo@example.com`** / **`midia-demo-2026`**. Toca lo que quieras: los datos vuelven a los de ejemplo cada noche.
+
 <p align="center">
   <img src="docs/capturas/hoy.png" width="250" alt="Vista Hoy: tarjeta AHORA, progreso y línea de tiempo del día" />
   &nbsp;
@@ -38,6 +40,7 @@
 | 🔔 **Avisos** | Notificación al empezar cada actividad: «Hasta las 12:30 · Siguiente: Comida». En la web, Web Push enviado desde el servidor, también con la app cerrada. |
 | ✅ **Hecho y notas** | Marca las tareas de hoy y añade notas. Las actividades «fijas» (dormir, comer) no cuentan para el progreso. |
 | 📴 **Sin conexión** | La app y la última lectura de hoy y de la semana se guardan en el dispositivo. |
+| 🛠️ **Administración** | Panel para el administrador: alta de usuarios sin pasar por Supabase, rachas, progreso semanal y tiempo por categoría, contraseñas y acceso a Google. |
 
 Todo en español, formato 24 h, semanas de lunes a domingo y hora de `Europe/Madrid`, independientemente de la zona del dispositivo.
 
@@ -60,7 +63,11 @@ flowchart LR
     Cron --> Sync["Edge Function<br/>gcal-sync"]
     Hook["Edge Function<br/>gcal-webhook"] --> Sync
     OAuth["Edge Function<br/>gcal-oauth"]
+    Admin["Edge Function<br/>admin"]
   end
+  UI -->|"solo admins"| Admin
+  Cron --> Admin
+  Admin -->|"auth.admin · userStats()"| DB
 
   Push -->|"claim_due_push()"| DB
   Push -->|Web Push| SW["Service worker<br/>(iPhone)"]
@@ -76,7 +83,8 @@ flowchart LR
 - **Reglas de negocio en funciones puras.** Recortes de eventos, medianoche, solapes, huecos, progreso y semanas viven en `src/domain`, sin React ni red, cubiertos con tests.
 - **El mismo código en cliente y servidor.** Las Edge Functions (Deno) usan exactamente la lógica de `src/domain`, empaquetada con esbuild (`npm run build:functions`). `npm test` falla si el paquete se queda atrás.
 - **Cambios atómicos.** Las operaciones que tocan varias filas de un día van en una sola transacción (`apply_day_changes`): un día nunca queda a medias.
-- **Seguridad en la base de datos.** Row Level Security en todas las tablas, permisos por columna para que los tokens de Google no sean legibles desde la app, y funciones de servidor solo para `service_role`.
+- **Seguridad en la base de datos.** Row Level Security en todas las tablas, permisos por columna para que los tokens de Google no sean legibles desde la app, y funciones de servidor solo para `service_role`. Los permisos de cada usuario (admin, demo, Google) viven en `user_flags`, que la app puede leer pero nunca escribir.
+- **Demo pública sin riesgo.** La cuenta de demostración está aislada por RLS como cualquier otra, no ve Google ni la administración, y cada noche recupera sus datos, su email y su contraseña.
 
 ---
 
@@ -144,7 +152,7 @@ Antes de dar algo por terminado: `npm run typecheck && npm run lint && npm test 
 
 ```
 src/
-  app/              Rutas de Expo Router. (tabs)/ = Hoy · Semana · Rutina · Ajustes
+  app/              Rutas de Expo Router. (tabs)/ = Hoy · Semana · Rutina · Ajustes · admin/
   components/       UI: TimelineBlock, NowCard, ActivitySheet, WeekDayCard, GoogleCalendarSettings…
   data/             Repositorio, tipos y stores (mock/ y supabase/). Única puerta a los datos
   domain/           Lógica pura y testeada: horas, medianoche, eventos, semanas, rebuildDay…
@@ -152,8 +160,8 @@ src/
   notifications/    Locales en nativo, Web Push en la web (*.web.ts)
   theme/            Colores, tipografías y espaciados
 supabase/
-  migrations/       Esquema, RLS, funciones SQL y crons (0001 → 0007)
-  functions/        Edge Functions: push, gcal-oauth, gcal-sync, gcal-webhook
+  migrations/       Esquema, RLS, funciones SQL y crons (0001 → 0009)
+  functions/        Edge Functions: push, gcal-oauth, gcal-sync, gcal-webhook, admin
 public/             index.html, manifest, iconos, service worker y política de privacidad
 scripts/            Service worker, paquete de funciones, tests SQL
 docs/               Especificación, guía de puesta en marcha y capturas
@@ -174,6 +182,7 @@ Los archivos `*.web.ts(x)` son variantes solo para la web (diálogos, selector d
 | `settings` | Recordatorio de planificación y avisos |
 | `push_subscriptions` · `push_log` | Dispositivos con Web Push y avisos ya enviados |
 | `google_accounts` · `google_calendars` · `google_events` | Conexión con Google, calendarios elegidos y eventos sincronizados |
+| `user_flags` | Qué es cada usuario: administrador, demo, acceso a Google |
 
 Las horas se guardan como `time` local + `date`, nunca como timestamps. Los detalles y las reglas están en la [especificación](docs/mi-dia-spec.md).
 

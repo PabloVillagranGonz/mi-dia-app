@@ -10,16 +10,18 @@ Cómo está montado Mi Día, cómo se vuelve a montar desde cero y cómo se comp
 
 | Pieza | Estado | Detalle |
 |---|---|---|
-| Base de datos | ✅ | Migraciones `0001` → `0007` aplicadas · RLS en todas las tablas |
-| Auth | ✅ | Email + contraseña · **registro cerrado** · 2 usuarios |
+| Base de datos | ✅ | Migraciones `0001` → `0009` aplicadas · RLS en todas las tablas |
+| Auth | ✅ | Email + contraseña · **registro cerrado** · altas desde `/admin` |
 | App web (PWA) | ✅ | Vercel publica cada push a `main` · instalada en el iPhone · funciona sin conexión |
 | Avisos Web Push | ✅ | Función `push` + cron `mi-dia-push` cada minuto · probado en el iPhone |
 | Google Calendar | ✅ | Funciones `gcal-oauth`, `gcal-sync`, `gcal-webhook` + cron `mi-dia-gcal-sync` cada 15 min · probado con Running |
-| Calidad | ✅ | `typecheck`, `lint`, 110 tests de Jest y 14 tests SQL en verde |
+| Administración | ✅ | Función `admin` · Ajustes → Administración (solo admins): usuarios, estadísticas, Google |
+| Demo pública | ✅ | `demo@example.com` · restablecida cada noche (cron `mi-dia-demo-reset`) |
+| Calidad | ✅ | `typecheck`, `lint`, 125 tests de Jest y 16 tests SQL en verde |
 
 ### Pendiente
-- [ ] **Panel `/admin`**: crear usuarios desde la app (sin entrar en Supabase), estadísticas y compartir cosas con los usuarios.
-- [ ] **Usuario de demostración** para el portfolio: credenciales públicas, datos de ejemplo y sin poder estropear nada.
+- [ ] Variables `EXPO_PUBLIC_DEMO_EMAIL` y `EXPO_PUBLIC_DEMO_PASSWORD` en Vercel para el botón «Probar la demo» (§3).
+- [ ] Más adelante: compartir cosas con los usuarios desde `/admin`.
 
 ### Descartado
 - Build nativa con Apple Developer (99 €/año) y uso diario con Expo Go: la PWA cubre el uso diario (§4). El código sigue compilando para nativo.
@@ -37,7 +39,8 @@ Cómo está montado Mi Día, cómo se vuelve a montar desde cero y cómo se comp
 |---|---|
 | `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_KEY` (públicas) | `.env.local` y Vercel → Environment Variables (tipo *Config*) |
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `CRON_SECRET` | Supabase → Edge Functions → Secrets |
-| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GCAL_STATE_SECRET`, `GCAL_ALLOWED_USER_IDS`, `APP_URL` | Supabase → Edge Functions → Secrets |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GCAL_STATE_SECRET`, `APP_URL` (y `GCAL_ALLOWED_USER_IDS`, opcional) | Supabase → Edge Functions → Secrets |
+| `DEMO_EMAIL`, `DEMO_PASSWORD` (públicos: cuenta de demostración) | Supabase → Edge Functions → Secrets · y como `EXPO_PUBLIC_DEMO_*` en Vercel |
 | `push_cron_secret` (mismo valor que `CRON_SECRET`) | Supabase → Vault (lo leen los crons) |
 | Contraseña de la base de datos | Gestor de contraseñas |
 
@@ -64,8 +67,10 @@ npx supabase db query --remote=bnqxmgtpqwhaztvpneyx --yes -f supabase/migrations
 | `0005_google_calendar.sql` | `google_accounts`, `google_calendars`, `google_events` (tokens solo para el servidor), `external_id`, `apply_day_changes_as()`, cerrojo de sincronización y Realtime en `day_activities` |
 | `0006_gcal_cron.sql` | Cron `mi-dia-gcal-sync` cada 15 min → función `gcal-sync` |
 | `0007_gcal_hidden.sql` | Ocultar calendarios en Ajustes |
+| `0008_admin.sql` | `user_flags` (admin, demo, acceso a Google; la app solo lee la suya) y `reset_user_data()` para la demo |
+| `0009_demo_cron.sql` | Cron `mi-dia-demo-reset` cada noche (04:00 UTC) → función `admin` |
 
-> **0004 y 0006** leen el secreto de Vault. Antes de ejecutarlas por primera vez: `select vault.create_secret('<CRON_SECRET>', 'push_cron_secret');` en una consulta aparte (no en el archivo, que está en git).
+> **0004, 0006 y 0009** leen el secreto de Vault. Antes de ejecutarlas por primera vez: `select vault.create_secret('<CRON_SECRET>', 'push_cron_secret');` en una consulta aparte (no en el archivo, que está en git).
 
 ### Edge Functions
 
@@ -81,27 +86,41 @@ npx supabase functions deploy <nombre> --remote=bnqxmgtpqwhaztvpneyx --no-verify
 | `gcal-oauth` | Ajustes · Google (vuelta de OAuth vía `/api/gcal/callback` en Vercel) | Conectar, estado y desconectar Google |
 | `gcal-sync` | Cron cada 15 min · Ajustes al cambiar calendarios | Sincronizar y reconstruir los días |
 | `gcal-webhook` | Google (`events.watch`) | Aviso de cambio → sincroniza al momento |
+| `admin` | Ajustes → Administración · cron nocturno | Usuarios, estadísticas, acceso a Google y restablecer la demo |
 
-**Si se cambia algo de `src/domain/`:** `npm run build:functions` y volver a desplegar las tres `gcal-*` (`npm test` falla si el paquete está desactualizado).
+**Si se cambia algo de `src/domain/`:** `npm run build:functions` y volver a desplegar `admin` y las tres `gcal-*` (`npm test` falla si el paquete está desactualizado).
 
 ---
 
-## 3. Usuarios
+## 3. Usuarios, administración y demo
 
 El registro está **cerrado** (Authentication → Sign In / Providers → *Allow new users to sign up* desactivado). Cada usuario tiene sus propios datos (RLS).
 
-**Dar de alta a alguien** (hasta que exista `/admin`):
-1. **Authentication → Users → Add user → Create new user**: email, contraseña inicial y **Auto Confirm User**.
-2. Comprobar en **Table Editor → `settings`** que tiene fila (el trigger le crea categorías, ajustes y rutina de ejemplo).
-3. Pasarle la URL y la contraseña por un canal privado. En su iPhone: Safari → Compartir → Añadir a pantalla de inicio → entrar → Ajustes → «Activar avisos en este dispositivo».
+### Panel de administración
+
+**Ajustes → Administración → Usuarios y estadísticas** (solo cuentas con `user_flags.is_admin`; ahora mismo, tú):
+
+- **Nuevo usuario:** email y contraseña inicial (se propone una aleatoria). Se le crea la rutina de ejemplo. Pásale la URL y la contraseña por un canal privado; en su iPhone: Safari → Añadir a pantalla de inicio → entrar → Ajustes → «Activar avisos en este dispositivo».
+- **Ficha de cada usuario:** racha actual y mejor racha (días con al menos la mitad de las tareas hechas), tareas hechas por semana (8 semanas) y tiempo por categoría.
+- **Acciones:** cambiar contraseña, dar o quitar Google Calendar (quitarlo desconecta su cuenta y restaura su rutina), desactivar (no puede entrar; se cierran sus sesiones) y borrar (con todos sus datos). No puedes desactivarte ni borrarte a ti mismo.
+
+**Hacer admin a otra cuenta** (no hay botón, a propósito):
+```sql
+insert into public.user_flags (user_id, is_admin) select id, true from auth.users where email = '…'
+on conflict (user_id) do update set is_admin = true;
+```
 
 **Rutina propia desde el principio:** sustituir sus filas de `template_activities` por SQL antes de que entre. Si ya entró y no ha marcado nada, borrar sus `weeks` para que la app las regenere.
 
-**Si un usuario se creó antes de la migración 0001** (sin datos): `select public.seed_user(id) from auth.users where email = '…';`
+> La app aún no tiene «cambiar contraseña» para el propio usuario: se la cambias desde su ficha en el panel.
 
-> La app aún no tiene «cambiar contraseña»: **Authentication → Users → ⋯ → Reset password**.
+### Cuenta de demostración (portfolio)
 
----
+- **Credenciales públicas:** `demo@example.com` / `midia-demo-2026` (secretos `DEMO_EMAIL` y `DEMO_PASSWORD`). Puede tocar todo lo suyo; no ve Google, ni Administración, ni los avisos al móvil.
+- **Cada noche** (cron `mi-dia-demo-reset`, 04:00 UTC) la función `admin` le restablece los datos de ejemplo, el email y la contraseña, y cierra sus sesiones. También desde el panel: **Restablecer ahora**.
+- **Botón «Probar la demo» en el login:** aparece si la web tiene `EXPO_PUBLIC_DEMO_EMAIL` y `EXPO_PUBLIC_DEMO_PASSWORD`:
+  - [ ] Vercel → `mi-dia-app` → Settings → Environment Variables → añadir las dos (tipo *Config*, mismos valores que los secretos) → Redeploy.
+- **Cambiar las credenciales:** actualizar los secretos de Supabase y las variables de Vercel, y pulsar **Restablecer ahora**.
 
 ## 4. App web (PWA) en Vercel
 
@@ -136,7 +155,7 @@ pg_cron cada 15 min ──> gcal-sync ─┼─> google_events ─> rebuildDay �
 Ajustes ──> gcal-oauth (conectar / estado / desconectar)
 ```
 
-- **Solo lectura** y solo para los usuarios de `GCAL_ALLOWED_USER_IDS` (ahora mismo, tú). Al resto no les aparece la sección.
+- **Solo lectura** y solo para los usuarios con acceso (se da desde la ficha del usuario en `/admin`; `GCAL_ALLOWED_USER_IDS` queda como respaldo). Al resto no les aparece la sección. La demo nunca tiene acceso.
 - Ventana: semana actual y siguiente. Los eventos **de todo el día no se traen**: hay que ponerles hora.
 - **Google siempre gana:** recorta rutina y eventos manuales. Al mover o borrar en Google, la rutina vuelve solo en el tramo que queda libre. «Hecha» y la nota se conservan, también si el evento cambia de día.
 - En Ajustes: activar calendarios, elegir su categoría y **ocultar** los que no se usan (ojo tachado; «Mostrar ocultos» para recuperarlos).
@@ -152,7 +171,7 @@ Ajustes ──> gcal-oauth (conectar / estado / desconectar)
   - Secretos de Google (§1).
   - Las tres funciones `gcal-*`.
 
-**Dar acceso a otro usuario:** añadir su `user_id` a `GCAL_ALLOWED_USER_IDS` (separados por comas). Google admite hasta 100 usuarios sin verificar la app.
+**Dar acceso a otro usuario:** Administración → su ficha → interruptor «Google Calendar». Google admite hasta 100 usuarios sin verificar la app.
 
 **Quitarlo:** Ajustes → Desconectar (revoca el permiso, borra sus datos y restaura la rutina) y `select cron.unschedule('mi-dia-gcal-sync');`.
 

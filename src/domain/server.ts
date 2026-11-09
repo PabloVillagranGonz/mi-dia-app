@@ -5,4 +5,6 @@ export { localNow } from './clock';
 export { externalId, eventRows, planEventsSync, syncWindow, toDayPieces } from './googleEvents';
 export type { EventsSyncPlan, GoogleApiEvent, GoogleCalendarConfig, GoogleEventRow, SyncWindow } from './googleEvents';
 export { rebuildDay } from './rebuildDay';
+export { userStats } from './stats';
+export type { UserStats } from './stats';
 export { addDays, compareDates, normalizeTime, weekDates, weekStartOf } from './time';

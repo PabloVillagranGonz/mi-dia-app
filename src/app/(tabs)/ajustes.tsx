@@ -12,6 +12,7 @@ import { ErrorText, Label, SwitchRow, TimeField } from '@/components/form';
 import { auth, errorMessage, repo, usingMockData, type Weekday } from '@/data';
 import { weekdayShort } from '@/domain/time';
 import { useRepoQuery } from '@/hooks/useRepoQuery';
+import { useMyFlags } from '@/hooks/useMyFlags';
 import { useSession } from '@/hooks/useSession';
 import { GoogleCalendarSettings } from '@/components/GoogleCalendarSettings';
 import { WebPushSettings } from '@/components/WebPushSettings';
@@ -22,6 +23,7 @@ const WEEKDAYS: Weekday[] = [1, 2, 3, 4, 5, 6, 7];
 
 export default function AjustesScreen() {
   const session = useSession();
+  const flags = useMyFlags();
   const q = useRepoQuery(() => repo.getSettings(), 'settings');
   const s = q.data;
   const [error, setError] = useState<string | null>(null);
@@ -59,6 +61,14 @@ export default function AjustesScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>Ajustes</Text>
         {usingMockData ? <Text style={styles.mock}>Usando datos de prueba (no hay .env.local).</Text> : null}
+        {flags.is_demo ? (
+          <View style={[styles.card, styles.demo]}>
+            <Ionicons name="sparkles-outline" size={18} color={colors.accent} />
+            <Text style={styles.demoText}>
+              Cuenta de demostración: prueba lo que quieras. Los datos vuelven a los de ejemplo cada noche.
+            </Text>
+          </View>
+        ) : null}
         <ErrorText>{error ?? q.error}</ErrorText>
 
         <Text style={styles.section}>NOTIFICACIONES</Text>
@@ -74,6 +84,8 @@ export default function AjustesScreen() {
               <Ionicons name="notifications-outline" size={18} color={colors.accent} />
               <Text style={styles.testText}>Enviar notificación de prueba</Text>
             </Pressable>
+          ) : flags.is_demo ? (
+            <Text style={[styles.hint, { marginTop: spacing.md }]}>Los avisos al móvil no están disponibles en la demo.</Text>
           ) : (
             <WebPushSettings />
           )}
@@ -101,7 +113,7 @@ export default function AjustesScreen() {
           <Text style={styles.hint}>«Planifica tu semana». Al tocarlo se abre el asistente.</Text>
         </View>
 
-        <GoogleCalendarSettings />
+        {!flags.is_demo ? <GoogleCalendarSettings /> : null}
 
         <Text style={styles.section}>RUTINA</Text>
         <Pressable style={[styles.card, styles.link]} onPress={() => router.push('/categorias')}>
@@ -109,6 +121,17 @@ export default function AjustesScreen() {
           <Text style={styles.linkText}>Categorías</Text>
           <Ionicons name="chevron-forward" size={18} color={colors.textFaint} />
         </Pressable>
+
+        {flags.is_admin ? (
+          <>
+            <Text style={styles.section}>ADMINISTRACIÓN</Text>
+            <Pressable style={[styles.card, styles.link]} onPress={() => router.push('/admin')}>
+              <Ionicons name="people-outline" size={20} color={colors.textMuted} />
+              <Text style={styles.linkText}>Usuarios y estadísticas</Text>
+              <Ionicons name="chevron-forward" size={18} color={colors.textFaint} />
+            </Pressable>
+          </>
+        ) : null}
 
         <Text style={styles.section}>CUENTA</Text>
         <View style={styles.card}>
@@ -157,4 +180,6 @@ const styles = StyleSheet.create({
   email: { color: colors.text, fontFamily: fonts.medium, fontSize: 15 },
   logout: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.md },
   logoutText: { color: colors.danger, fontFamily: fonts.semibold, fontSize: 15 },
+  demo: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderColor: colors.accent },
+  demoText: { flex: 1, color: colors.text, fontFamily: fonts.medium, fontSize: 13 },
 });

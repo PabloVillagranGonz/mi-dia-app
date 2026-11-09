@@ -20,6 +20,18 @@ export default function LoginScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  async function demo() {
+    setBusy(true);
+    setError(null);
+    try {
+      await auth.signInDemo();
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function submit() {
     setBusy(true);
     setError(null);
@@ -80,6 +92,20 @@ export default function LoginScreen() {
             {busy ? <ActivityIndicator color={colors.text} /> : <Text style={styles.buttonText}>Entrar</Text>}
           </Pressable>
           <Text style={styles.hint}>Solo tendrás que hacerlo una vez.</Text>
+
+          {auth.demoAvailable ? (
+            <View style={styles.demoBox}>
+              <Text style={styles.demoTitle}>¿Vienes a curiosear?</Text>
+              <Pressable
+                style={({ pressed }) => [styles.demoButton, (pressed || busy) && { opacity: 0.8 }]}
+                onPress={demo}
+                disabled={busy}
+              >
+                <Text style={styles.demoButtonText}>Probar la demo</Text>
+              </Pressable>
+              <Text style={styles.hint}>Una cuenta de ejemplo: toca lo que quieras, se restablece cada noche.</Text>
+            </View>
+          ) : null}
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -113,4 +139,14 @@ const styles = StyleSheet.create({
   },
   buttonText: { color: colors.text, fontFamily: fonts.bold, fontSize: 16 },
   hint: { color: colors.textFaint, fontFamily: fonts.regular, fontSize: 13, textAlign: 'center', marginTop: spacing.sm },
+  demoBox: { marginTop: spacing.xl, paddingTop: spacing.xl, borderTopWidth: 1, borderTopColor: colors.border, gap: spacing.sm },
+  demoTitle: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 14, textAlign: 'center' },
+  demoButton: {
+    borderWidth: 1,
+    borderColor: colors.accent,
+    borderRadius: radius.md,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+  },
+  demoButtonText: { color: colors.accent, fontFamily: fonts.bold, fontSize: 16 },
 });

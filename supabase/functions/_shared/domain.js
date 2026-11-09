@@ -1,5 +1,5 @@
 // GENERADO por scripts/build-functions.mjs desde src/domain/. NO EDITAR.
-// domain-hash: 06cfc69f217e9066
+// domain-hash: 9008a0b0865d783a
 // src/domain/clock.ts
 var TIMEZONE = "Europe/Madrid";
 var formatter = new Intl.DateTimeFormat("en-GB", {
@@ -330,6 +330,55 @@ function rebuildDay(input) {
   }
   return changes;
 }
+
+// src/domain/progress.ts
+function progressOf(activities) {
+  const tasks = activities.filter((a) => a.kind === "task");
+  const done = tasks.filter((a) => a.done).length;
+  return { done, total: tasks.length, ratio: tasks.length ? done / tasks.length : 0 };
+}
+
+// src/domain/stats.ts
+var DAY_GOAL = 0.5;
+function dayAccomplished(acts) {
+  const p = progressOf(acts);
+  return p.total > 0 && p.ratio >= DAY_GOAL;
+}
+function userStats(activities, today) {
+  const upToToday = activities.filter((a) => compareDates(a.date, today) <= 0);
+  const byDay = /* @__PURE__ */ new Map();
+  for (const a of upToToday) byDay.set(a.date, [...byDay.get(a.date) ?? [], a]);
+  const byWeek = /* @__PURE__ */ new Map();
+  for (const a of upToToday) {
+    const w = weekStartOf(a.date);
+    byWeek.set(w, [...byWeek.get(w) ?? [], a]);
+  }
+  const weeks = [...byWeek.entries()].map(([week_start, acts]) => ({ week_start, ...progressOf(acts) })).sort((a, b) => compareDates(b.week_start, a.week_start));
+  const ok = (d) => dayAccomplished(byDay.get(d) ?? []);
+  let streak = 0;
+  for (let d = ok(today) ? today : addDays(today, -1); ok(d); d = addDays(d, -1)) streak++;
+  const days = [...byDay.keys()].sort(compareDates);
+  let bestStreak = 0;
+  let run = 0;
+  let prev = null;
+  for (const d of days) {
+    if (!ok(d)) {
+      run = 0;
+    } else {
+      run = prev && addDays(prev, 1) === d && run > 0 ? run + 1 : 1;
+      bestStreak = Math.max(bestStreak, run);
+    }
+    prev = d;
+  }
+  const minutes = /* @__PURE__ */ new Map();
+  for (const a of upToToday) {
+    const m = toMinutes(a.end_time) - toMinutes(a.start_time);
+    minutes.set(a.category_id, (minutes.get(a.category_id) ?? 0) + m);
+  }
+  const categories = [...minutes.entries()].map(([category_id, m]) => ({ category_id, minutes: m })).sort((a, b) => b.minutes - a.minutes);
+  const doneDays = upToToday.filter((a) => a.done).map((a) => a.date).sort(compareDates);
+  return { weeks, streak, bestStreak, categories, lastDoneDate: doneDays[doneDays.length - 1] ?? null };
+}
 export {
   addDays,
   compareDates,
@@ -341,6 +390,7 @@ export {
   rebuildDay,
   syncWindow,
   toDayPieces,
+  userStats,
   weekDates,
   weekStartOf
 };

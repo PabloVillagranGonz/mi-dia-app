@@ -84,3 +84,24 @@ export interface GoogleCalendar {
   /** Oculto en Ajustes (no se usa). Solo afecta a la lista. */
   hidden: boolean;
 }
+
+/** Qué es el usuario (tabla user_flags). Sin fila: usuario normal. */
+export interface UserFlags {
+  is_admin: boolean;
+  is_demo: boolean;
+  gcal_allowed: boolean;
+}
+
+/** Usuario visto desde el panel de administración. */
+export interface AdminUser {
+  id: UUID;
+  email: string;
+  created_at: string;
+  last_sign_in_at: string | null;
+  disabled: boolean;
+  is_admin: boolean;
+  is_demo: boolean;
+  gcal_allowed: boolean;
+  google_email: string | null;
+  devices: number;
+}

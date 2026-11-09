@@ -295,6 +295,7 @@ Las capturas están en `docs/diseno/`:
 ## 9. Fuera de la Fase 1
 - ~~Sincronización con Google Calendar~~ → hecha (§4.2 bis, issue #1).
 - Modo offline completo con escritura.
-- Estadísticas históricas (rachas, horas por categoría), en un panel **`/admin`** solo para el administrador, desde el que también se podrán compartir cosas con los usuarios (más adelante).
-- Varios usuarios: cada uno con sus datos (RLS); se dan de alta a mano en Supabase (registro cerrado).
+- ~~Panel **`/admin`** solo para el administrador~~ → hecho: alta y gestión de usuarios, rachas, progreso por semana, tiempo por categoría y acceso a Google. Pendiente: compartir cosas con los usuarios.
+- ~~Cuenta de demostración para el portfolio~~ → hecha: `demo@example.com`, restablecida cada noche.
+- ~~Varios usuarios~~ → hecho: cada uno con sus datos (RLS); registro cerrado y alta desde `/admin`.
 - Widget de iOS / Live Activity con la actividad actual (requiere build nativa y cuenta de Apple Developer; no es posible en la PWA).

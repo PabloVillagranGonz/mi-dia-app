@@ -53,6 +53,8 @@ export default function RootLayout() {
           <Stack.Screen name="planificar" options={{ presentation: 'modal' }} />
           <Stack.Screen name="categorias" />
           <Stack.Screen name="dia/[date]" />
+          <Stack.Screen name="admin/index" />
+          <Stack.Screen name="admin/[id]" />
         </Stack.Protected>
         <Stack.Protected guard={!loggedIn}>
           <Stack.Screen name="login" />

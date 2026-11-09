@@ -15,7 +15,9 @@ Deno.serve(async (req) => {
     if (isCron(req)) {
       const { data, error } = await admin.from('google_accounts').select('user_id');
       if (error) throw error;
-      const users = (data ?? []).map((r) => r.user_id as string).filter(isAllowed);
+      const ids = (data ?? []).map((r) => r.user_id as string);
+      const users = [];
+      for (const u of ids) if (await isAllowed(u)) users.push(u);
       const results = [];
       for (const u of users) results.push({ user: u, ...(await syncUser(u)) });
       return json({ users: results.length, results });
@@ -23,7 +25,7 @@ Deno.serve(async (req) => {
 
     const userId = await sessionUser(req);
     if (!userId) return json({ error: 'Sin sesión' }, 401);
-    if (!isAllowed(userId)) return json({ allowed: false }, 403);
+    if (!(await isAllowed(userId))) return json({ allowed: false }, 403);
     return json(await syncUser(userId));
   } catch (e) {
     console.error('gcal-sync', e);

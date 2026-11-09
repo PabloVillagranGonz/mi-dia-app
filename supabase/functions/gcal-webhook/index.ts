@@ -17,7 +17,7 @@ Deno.serve(async (req) => {
     .eq('channel_id', channelId)
     .maybeSingle();
   // Canal desconocido o token falso: 200 igualmente para que Google no reintente sin fin
-  if (!data || data.channel_token !== token || !isAllowed(data.user_id)) return new Response(null, { status: 200 });
+  if (!data || data.channel_token !== token || !(await isAllowed(data.user_id))) return new Response(null, { status: 200 });
 
   // «sync» es el primer aviso al crear el canal: no hay cambios
   if (state !== 'sync') background(syncUser(data.user_id));

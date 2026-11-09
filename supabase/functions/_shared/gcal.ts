@@ -3,7 +3,7 @@
 // Secretos (Supabase → Edge Functions → Secrets):
 //   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET  credencial OAuth «Aplicación web» de Google Cloud
 //   GCAL_STATE_SECRET                       texto aleatorio para firmar el `state` de OAuth
-//   GCAL_ALLOWED_USER_IDS                   UUIDs (separados por comas) que pueden usarlo
+//   GCAL_ALLOWED_USER_IDS                   (opcional) UUIDs con acceso además de user_flags.gcal_allowed
 //   APP_URL                                 https://mi-dia-app-seven.vercel.app (sin / final)
 //   CRON_SECRET                             el mismo que usa `push` (pg_cron)
 // SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY los pone Supabase.
@@ -84,9 +84,15 @@ function check<T>(res: { data: T; error: { message: string } | null }): T {
 }
 
 // ── Quién llama ────────────────────────────────────────────────
-export function isAllowed(userId: string): boolean {
+/**
+ * ¿Puede usar Google Calendar? Lo decide el administrador (user_flags.gcal_allowed, desde /admin).
+ * GCAL_ALLOWED_USER_IDS queda como respaldo (usuarios separados por comas).
+ */
+export async function isAllowed(userId: string): Promise<boolean> {
   const list = (Deno.env.get('GCAL_ALLOWED_USER_IDS') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
-  return list.includes(userId);
+  if (list.includes(userId)) return true;
+  const { data } = await admin.from('user_flags').select('gcal_allowed, is_demo').eq('user_id', userId).maybeSingle();
+  return Boolean(data?.gcal_allowed) && !data?.is_demo;
 }
 
 /** Usuario de la sesión (Authorization: Bearer <jwt>), o null. */

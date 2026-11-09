@@ -18,4 +18,6 @@ export { errorMessage, UserError } from './errors';
 export * as auth from './auth';
 export * as push from './push';
 export * as google from './google';
+export * as adminApi from './admin';
+export { myFlags, NO_FLAGS } from './account';
 export { subscribeRemoteChanges } from './live';

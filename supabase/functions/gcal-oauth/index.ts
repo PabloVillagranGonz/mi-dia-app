@@ -43,7 +43,7 @@ function idTokenEmail(idToken: string | undefined): string | null {
 async function callback(url: URL): Promise<Response> {
   if (url.searchParams.get('error')) return back('error', url.searchParams.get('error')!); // p. ej. access_denied
   const userId = await verifyState(url.searchParams.get('state') ?? '');
-  if (!userId || !isAllowed(userId)) return back('error', 'state');
+  if (!userId || !(await isAllowed(userId))) return back('error', 'state');
   const code = url.searchParams.get('code');
   if (!code) return back('error', 'code');
 
@@ -88,7 +88,7 @@ Deno.serve(async (req) => {
 
     const userId = await sessionUser(req);
     if (!userId) return json({ error: 'Sin sesión' }, 401);
-    if (!isAllowed(userId)) return json({ allowed: false }, 403);
+    if (!(await isAllowed(userId))) return json({ allowed: false }, 403);
 
     if (route === 'start' && req.method === 'POST') {
       const q = new URLSearchParams({

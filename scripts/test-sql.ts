@@ -1,5 +1,5 @@
 // Tests de la parte SQL: claim_due_push() (avisos Web Push) frente a la lógica de la app,
-// y permisos de las tablas de Google Calendar (0005).
+// permisos de las tablas de Google Calendar (0005) y del panel de administración (0008).
 // Uso:  npm run test:sql
 //
 // Levanta un Postgres embebido (PGlite, sin Docker ni red), carga las migraciones reales
@@ -14,7 +14,7 @@ import { join } from 'node:path';
 import { zonedToInstant } from '../src/domain/clock';
 import { planActivityNotifications } from '../src/domain/notifications';
 
-const MIGRATIONS = ['0001_init.sql', '0002_apply_day_changes.sql', '0003_web_push.sql', '0005_google_calendar.sql', '0007_gcal_hidden.sql'];
+const MIGRATIONS = ['0001_init.sql', '0002_apply_day_changes.sql', '0003_web_push.sql', '0005_google_calendar.sql', '0007_gcal_hidden.sql', '0008_admin.sql'];
 const USER = '00000000-0000-0000-0000-00000000000a';
 const OTHER = '00000000-0000-0000-0000-00000000000b'; // sin dispositivo suscrito
 const WEEK = '00000000-0000-0000-0000-0000000000f1';
@@ -308,6 +308,44 @@ test('cerrojo de sincronización: uno a la vez y repetir si llegó otro aviso', 
   // Un cerrojo caducado (función colgada) no bloquea para siempre
   await db.query(`update public.google_accounts set sync_lock_until = now() - interval '1 second' where user_id = $1`, [USER]);
   assert.equal(await lock(), true);
+});
+
+// ── Administración y demo (0008) ───────────────────────────────
+
+test('user_flags: cada usuario lee solo su fila y nadie la escribe desde la app', async () => {
+  const db = await setup();
+  await db.query(`insert into public.user_flags (user_id, is_admin) values ($1, true), ($2, false)`, [USER, OTHER]);
+  await asUser(db, OTHER, async () => {
+    const rows = (await db.query<{ user_id: string; is_admin: boolean }>(`select user_id, is_admin from public.user_flags`)).rows;
+    assert.deepEqual(rows, [{ user_id: OTHER, is_admin: false }], 'no ve la fila del administrador');
+    await failsWith(db.query(`update public.user_flags set is_admin = true`), /permission denied/);
+    await failsWith(db.query(`insert into public.user_flags (user_id, is_admin) values ($1, true)`, [OTHER]), /permission denied/);
+    await failsWith(db.query(`select public.reset_user_data($1)`, [OTHER]), /permission denied/);
+  });
+});
+
+test('reset_user_data: solo con cuentas demo; deja la rutina de ejemplo y borra lo demás', async () => {
+  const db = await setup();
+  await failsWith(db.query(`select public.reset_user_data($1)`, [USER]), /demostraci/);
+
+  await db.query(`insert into public.user_flags (user_id, is_demo) values ($1, true)`, [USER]);
+  const count = async (t: string) =>
+    Number((await db.query<{ n: string }>(`select count(*) n from public.${t} where user_id = $1`, [USER])).rows[0].n);
+  const templatesBefore = await count('template_activities');
+  await db.query(`delete from public.template_activities where user_id = $1 and weekday = 1`, [USER]); // «estropear» la rutina
+  await db.query(`update public.settings set notifications_enabled = false where user_id = $1`, [USER]);
+
+  await db.query(`select public.reset_user_data($1)`, [USER]);
+
+  assert.equal(await count('template_activities'), templatesBefore, 'rutina de ejemplo completa');
+  assert.equal(await count('categories'), 4);
+  assert.equal(await count('day_activities'), 0);
+  assert.equal(await count('weeks'), 0);
+  assert.equal(await count('push_subscriptions'), 0);
+  const s = await db.query<{ n: boolean }>(`select notifications_enabled n from public.settings where user_id = $1`, [USER]);
+  assert.equal(s.rows[0].n, true, 'ajustes por defecto');
+  // El otro usuario no se toca
+  assert.ok(Number((await db.query<{ n: string }>(`select count(*) n from public.categories where user_id = $1`, [OTHER])).rows[0].n) > 0);
 });
 
 (async () => {
