@@ -1,0 +1,48 @@
+{
+  "expo": {
+    "name": "Mi Día",
+    "slug": "mi-dia",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.pablo.midia"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#111216",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "com.pablo.midia"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      [
+        "expo-notifications",
+        {
+          "color": "#D9603B"
+        }
+      ],
+      "@react-native-community/datetimepicker"
+    ],
+    "scheme": "midia",
+    "backgroundColor": "#111216",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#111216"
+    },
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
