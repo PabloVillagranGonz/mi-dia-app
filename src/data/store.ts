@@ -1,0 +1,40 @@
+// Operaciones básicas de lectura/escritura. Dos implementaciones:
+// mock/store.ts (memoria) y supabase/store.ts. Las reglas de negocio viven en repository.ts.
+
+import type { DayActivityDraft } from '@/domain/week';
+import type { Category, DayActivity, ISODate, Settings, TemplateActivity, Week, WeekSource } from './types';
+
+export type NewCategory = Omit<Category, 'id' | 'user_id'>;
+export type NewTemplate = Omit<TemplateActivity, 'id' | 'user_id'>;
+export type NewDayActivity = DayActivityDraft & { week_id: string };
+
+export type DayActivityPatch = Partial<Omit<DayActivity, 'id' | 'user_id'>>;
+export type TemplatePatch = Partial<Omit<TemplateActivity, 'id' | 'user_id'>>;
+export type SettingsPatch = Partial<Omit<Settings, 'user_id'>>;
+
+export interface Store {
+  listCategories(): Promise<Category[]>;
+  insertCategory(c: NewCategory): Promise<Category>;
+  updateCategory(id: string, patch: Partial<NewCategory>): Promise<void>;
+  deleteCategory(id: string): Promise<void>;
+
+  listTemplates(): Promise<TemplateActivity[]>;
+  insertTemplates(rows: NewTemplate[]): Promise<TemplateActivity[]>;
+  updateTemplate(id: string, patch: TemplatePatch): Promise<void>;
+  deleteTemplates(ids: string[]): Promise<void>;
+
+  getWeek(weekStart: ISODate): Promise<Week | null>;
+  /** Si ya existe (carrera entre dos aperturas), devuelve la existente. */
+  insertWeek(weekStart: ISODate, source: WeekSource): Promise<Week>;
+  updateWeek(id: string, patch: { source: WeekSource }): Promise<void>;
+
+  /** Fechas inclusivas. */
+  listDayActivities(from: ISODate, to: ISODate): Promise<DayActivity[]>;
+  getDayActivity(id: string): Promise<DayActivity | null>;
+  insertDayActivities(rows: NewDayActivity[]): Promise<DayActivity[]>;
+  updateDayActivity(id: string, patch: DayActivityPatch): Promise<void>;
+  deleteDayActivities(ids: string[]): Promise<void>;
+
+  getSettings(): Promise<Settings>;
+  updateSettings(patch: SettingsPatch): Promise<void>;
+}

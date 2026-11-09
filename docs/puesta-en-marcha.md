@@ -36,27 +36,17 @@ Qué hace ese script:
 > select public.seed_user(id) from auth.users where email = 'TU_EMAIL';
 > ```
 
-## 4. Login con código de 6 dígitos (OTP)
+## 4. Login con email y contraseña
 
-Por defecto Supabase manda un *enlace mágico*. Queremos un **código** (los enlaces dan problemas en Expo Go).
+> Cambio del 9-11-2026: sin SMTP propio Supabase no deja editar los correos y el de por defecto solo manda un enlace, así que el login es **email + contraseña** (sin correos ni deep links).
 
-1. [ ] **Authentication → Sign In / Providers → Email**:
-   - **Enable Email provider**: activado.
-   - **Email OTP Length**: `6`.
-   - **Email OTP Expiration**: `3600` (1 h) está bien.
-   - Guarda.
-2. [ ] **Authentication → Emails → Templates**. Edita **dos** plantillas (la primera vez se usa *Confirm signup*; las siguientes, *Magic Link*):
-   - **Confirm signup**
-     - Asunto: `Tu código de Mi Día`
-     - Cuerpo:
-       ```html
-       <h2>Mi Día</h2>
-       <p>Tu código de acceso es:</p>
-       <p style="font-size:32px;font-weight:bold;letter-spacing:6px">{{ .Token }}</p>
-       ```
-   - **Magic Link**: mismo asunto y mismo cuerpo.
-   - Lo importante es que aparezca `{{ .Token }}` y que **no** aparezca `{{ .ConfirmationURL }}`.
-3. [ ] Límite de correos: el servidor de correo incluido en Supabase manda muy pocos por hora y solo a direcciones del equipo del proyecto. Para un solo usuario (tú) basta. Si algún día no llega el código, espera unos minutos o configura un SMTP propio (Resend, por ejemplo) en **Authentication → Emails → SMTP Settings**.
+1. [x] **Authentication → Sign In / Providers → Email**: ya está activado.
+2. [ ] **Authentication → Users → Add user → Create new user**:
+   - Tu email y una contraseña **nueva** (no la de otro servicio). Guárdala en tu gestor.
+   - Marca **Auto Confirm User** (así no hace falta correo de confirmación).
+3. [ ] Comprueba en **Table Editor** que se ha creado tu rutina:
+   - `categories` → 4 filas · `template_activities` → **49 filas** · `settings` → 1 fila.
+4. [ ] **Cerrar el registro** (recomendado): en **Sign In / Providers → User Signups**, desactiva **Allow new users to sign up** y pulsa **Save changes**. La clave publishable va dentro de la app, así que sin esto cualquiera que la tenga podría crearse una cuenta en tu proyecto. Tú sigues pudiendo entrar con tu usuario.
 
 ## 5. Conectar la app
 
@@ -79,7 +69,7 @@ Por defecto Supabase manda un *enlace mágico*. Queremos un **código** (los enl
 2. [ ] En el Mac: `npm install` (solo la primera vez) y `npx expo start`.
 3. [ ] Con el iPhone en la **misma wifi** que el Mac, escanea el QR con la **cámara** → se abre en Expo Go.
    - Si no conecta (wifi de la universidad, de un bar…): `npx expo start --tunnel`.
-4. [ ] Primer arranque: email → te llega el código → lo escribes. La sesión queda guardada; no lo volverás a pedir.
+4. [ ] Primer arranque: email + contraseña. La sesión queda guardada; no lo volverás a pedir.
 5. [ ] Comprueba en Supabase → **Table Editor → categories** que aparecen tus 4 categorías.
 
 **Aviso Expo Go:** solo abre proyectos de la última SDK. El proyecto está en la **SDK 58**. Cuando Expo Go se actualice a la siguiente, habrá que subir de versión (`npx expo install expo@latest && npx expo install --fix`).

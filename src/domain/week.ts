@@ -1,7 +1,7 @@
 // Generar semanas y aplicar cambios de la rutina base (spec §4.1 y §4.3).
 
 import type { DayActivity, ISODate, TemplateActivity } from '@/data/types';
-import { fromRange, subtractRanges, toRange } from './intervals';
+import { fromRange, subtractRanges, toRange, type Slot } from './intervals';
 import { addDays, compareDates, weekDates, weekdayOf } from './time';
 
 /** Actividad de un día aún sin guardar (sin id, usuario ni semana). */
@@ -46,6 +46,12 @@ export function composeDay(
     .flatMap((t) =>
       subtractRanges(toRange(t), blockers).map((r) => ({ ...draftFromTemplate(t, date), ...fromRange(r) })),
     );
+}
+
+/** Recorta cada elemento alrededor de los bloqueos (p. ej. eventos ya puestos en una semana que se replanifica). */
+export function trimAround<T extends Slot>(items: readonly T[], blockers: readonly Slot[]): T[] {
+  const cuts = blockers.map(toRange);
+  return items.flatMap((it) => subtractRanges(toRange(it), cuts).map((r) => ({ ...it, ...fromRange(r) })));
 }
 
 /** Semana desde la rutina base. */

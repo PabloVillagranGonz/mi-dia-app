@@ -11,7 +11,7 @@ Este documento junta todas las decisiones tomadas. La interfaz sale de Emergent 
 |---|---|
 | App | Expo (última SDK soportada por Expo Go) + **TypeScript** + **Expo Router** |
 | Backend | **Supabase** (Postgres + Auth), usado directamente desde la app con `@supabase/supabase-js`. Sin servidor propio. |
-| Auth | Email con **código OTP de 6 dígitos** (no magic link: los deep links en Expo Go dan problemas). Sesión persistida en AsyncStorage → login una sola vez. |
+| Auth | **Email + contraseña** (usuario creado a mano en Supabase, registro cerrado). Sin magic link ni OTP: el correo por defecto de Supabase solo manda enlaces y los deep links en Expo Go dan problemas. Sesión persistida en AsyncStorage → login una sola vez. |
 | Notificaciones | `expo-notifications`, solo **locales** (funcionan en Expo Go). |
 | Instalación | **Expo Go + EAS Update**. Si pasa a uso diario serio → cuenta Apple Developer (99 €/año) + TestFlight; el código no cambia. |
 | Zona horaria | `Europe/Madrid`. Formato 24 h. Semana de **lunes a domingo**. Todo el texto en español. |
@@ -52,6 +52,7 @@ Este documento junta todas las decisiones tomadas. La interfaz sale de Emergent 
 - **Ajustes manuales se respetan:** una actividad de un día con el horario/título cambiado a mano se marca `edited = true` y «Aplicar rutina base» no la sobrescribe.
 - **Copiar la semana anterior** regenera desde la rutina base las actividades `origin = 'template'` no editadas (así no se arrastran los recortes de eventos que no se copian) y copia tal cual las `manual` y las `template` con `edited = true`.
 - **Fin de semana vacío**, también la noche del viernes al sábado (sin «Dormir»).
+- **Login con email + contraseña** en lugar de OTP: editar las plantillas de correo de Supabase exige SMTP propio.
 
 ---
 
@@ -174,7 +175,7 @@ Barra inferior: **Hoy · Semana · Rutina · Ajustes**
 
 | Pantalla | Contenido |
 |---|---|
-| **Login** | Email → código de 6 dígitos. Solo la primera vez. |
+| **Login** | Email + contraseña. Solo la primera vez. |
 | **Hoy** (principal) | Cabecera con fecha y barra de progreso. Tarjeta grande «AHORA» (actividad, hora de fin, tiempo restante) y «Siguiente». Línea de tiempo vertical del día con los bloques coloreados por categoría y los huecos en gris. Tocar un bloque abre una hoja inferior con: marcar hecho, nota y editar horario de hoy. Botón «+» para añadir evento o actividad. |
 | **Semana** | 7 columnas o tarjetas (L–D) con los bloques del día en miniatura, progreso por día y de la semana, flechas para semana anterior/siguiente (las pasadas en solo lectura). Botón «Planificar semana siguiente». |
 | **Planificar** (asistente) | 1) Elegir origen: rutina base / copiar la semana actual. 2) Revisar día a día y añadir eventos (ensayos, bolos, citas) y ajustes. 3) Confirmar. |
@@ -245,7 +246,7 @@ Vacíos (todo «Tiempo libre»). Se rellenan a mano o con eventos en la planific
 
 **Claude Code (lógica):**
 1. Proyecto Supabase: tablas, RLS y la función de alta inicial (seed).
-2. Auth con OTP y persistencia de la sesión.
+2. Auth con email + contraseña y persistencia de la sesión.
 3. Cambiar la capa `src/data/` de datos de prueba a Supabase (+ caché de lectura).
 4. Reglas de la sección 4: generar semanas, eventos con recorte, medianoche, solapes y aplicar cambios de la base.
 5. Notificaciones locales con ventana móvil + recordatorio dominical.

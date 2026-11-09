@@ -13,10 +13,12 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
 
+import { useEnsureCurrentWeek } from '@/hooks/useEnsureCurrentWeek';
+import { useSession } from '@/hooks/useSession';
 import { colors } from '@/theme';
 
 export default function RootLayout() {
-  const [loaded] = useFonts({
+  const [fontsLoaded] = useFonts({
     BarlowCondensed_600SemiBold,
     BarlowCondensed_700Bold,
     Inter_400Regular,
@@ -24,8 +26,13 @@ export default function RootLayout() {
     Inter_600SemiBold,
     Inter_700Bold,
   });
+  const session = useSession();
+  const loggedIn = !!session;
+  useEnsureCurrentWeek(loggedIn);
 
-  if (!loaded) return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
+  if (!fontsLoaded || session === undefined) {
+    return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
+  }
 
   return (
     <>
@@ -36,10 +43,14 @@ export default function RootLayout() {
           contentStyle: { backgroundColor: colors.bg },
         }}
       >
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="login" />
-        <Stack.Screen name="planificar" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="categorias" />
+        <Stack.Protected guard={loggedIn}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="planificar" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="categorias" />
+        </Stack.Protected>
+        <Stack.Protected guard={!loggedIn}>
+          <Stack.Screen name="login" />
+        </Stack.Protected>
       </Stack>
     </>
   );
