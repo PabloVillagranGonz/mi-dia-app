@@ -27,6 +27,8 @@ export interface Store {
   /** Si ya existe (carrera entre dos aperturas), devuelve la existente. */
   insertWeek(weekStart: ISODate, source: WeekSource): Promise<Week>;
   updateWeek(id: string, patch: { source: WeekSource }): Promise<void>;
+  /** Borra la semana y (en cascada) todas sus actividades. */
+  deleteWeek(id: string): Promise<void>;
 
   /** Fechas inclusivas. */
   listDayActivities(from: ISODate, to: ISODate): Promise<DayActivity[]>;

@@ -74,6 +74,10 @@ export function createSupabaseStore(sb: SupabaseClient): Store {
       check(await sb.from('weeks').update({ ...patch, planned_at: new Date().toISOString() }).eq('id', id));
     },
 
+    async deleteWeek(id) {
+      check(await sb.from('weeks').delete().eq('id', id));
+    },
+
     async listDayActivities(from, to) {
       const rows = check(
         await sb.from('day_activities').select('*').gte('date', from).lte('date', to).order('date').order('start_time'),

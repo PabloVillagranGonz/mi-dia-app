@@ -3,7 +3,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ErrorText, PrimaryButton } from '@/components/form';
@@ -43,6 +43,24 @@ export default function PlanificarScreen() {
     } finally {
       setBusy(false);
     }
+  }
+
+  function confirmDelete() {
+    Alert.alert('Borrar planificación', 'Se borrarán todas las actividades y eventos de esta semana. Quedará sin planificar.', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Borrar',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await repo.deleteWeek(weekStart);
+            router.back();
+          } catch (e) {
+            setError(errorMessage(e));
+          }
+        },
+      },
+    ]);
   }
 
   return (
@@ -89,6 +107,11 @@ export default function PlanificarScreen() {
             <ErrorText>{error}</ErrorText>
             <PrimaryButton title={busy ? 'Generando…' : 'Continuar'} onPress={generate} disabled={busy} />
             {existing.data ? <PrimaryButtonGhost title="Mantener como está y revisar" onPress={() => setStep(2)} /> : null}
+            {existing.data && compareDates(weekStart, weekStartOf(today)) > 0 ? (
+              <Pressable onPress={confirmDelete} style={styles.deleteBtn}>
+                <Text style={styles.deleteText}>Borrar planificación de esta semana</Text>
+              </Pressable>
+            ) : null}
           </>
         ) : null}
 
@@ -196,5 +219,7 @@ const styles = StyleSheet.create({
   optionText: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 13 },
   ghost: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, paddingVertical: 14, alignItems: 'center' },
   ghostText: { color: colors.text, fontFamily: fonts.semibold, fontSize: 15 },
+  deleteBtn: { paddingVertical: spacing.md, alignItems: 'center' },
+  deleteText: { color: colors.danger, fontFamily: fonts.semibold, fontSize: 15 },
   done: { alignItems: 'center', gap: spacing.lg, paddingTop: spacing.xxl, alignSelf: 'stretch' },
 });

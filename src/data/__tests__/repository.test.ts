@@ -163,4 +163,14 @@ describe('repositorio', () => {
     await repo.restoreDay(TUE);
     expect((await repo.getDay(TUE)).find((a) => a.title === 'Deporte')).toBeDefined();
   });
+
+  test('borrar la planificación de una semana futura; la actual no', async () => {
+    const { repo } = setup(SUN);
+    await repo.ensureWeek(MON);
+    await repo.planWeek(NEXT_MON, 'copy');
+    await repo.deleteWeek(NEXT_MON);
+    expect(await repo.getWeek(NEXT_MON)).toBeNull();
+    expect(await repo.getDay(NEXT_MON)).toEqual([]);
+    await expect(repo.deleteWeek(MON)).rejects.toThrow('Solo se pueden borrar semanas futuras.');
+  });
 });

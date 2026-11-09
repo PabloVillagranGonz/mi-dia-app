@@ -73,6 +73,11 @@ export function createMockStore(): Store {
       db.weeks = db.weeks.map((w) => (w.id === id ? { ...w, ...patch, planned_at: new Date().toISOString() } : w));
     },
 
+    async deleteWeek(id) {
+      db.weeks = db.weeks.filter((w) => w.id !== id);
+      db.activities = db.activities.filter((a) => a.week_id !== id);
+    },
+
     async listDayActivities(from, to) {
       return clone(db.activities.filter((a) => a.date >= from && a.date <= to));
     },

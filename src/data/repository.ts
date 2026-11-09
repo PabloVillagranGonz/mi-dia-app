@@ -111,6 +111,20 @@ export function createRepository(store: Store, today: () => ISODate = () => loca
     changed();
   }
 
+  /**
+   * Borra la planificación de una semana FUTURA (actividades, eventos y notas incluidos).
+   * La semana actual no se puede borrar: se regeneraría sola al abrir la app.
+   */
+  async function deleteWeek(weekStart: ISODate): Promise<void> {
+    if (compareDates(weekStart, weekStartOf(today())) <= 0) {
+      throw new UserError('Solo se pueden borrar semanas futuras.');
+    }
+    const week = await store.getWeek(weekStart);
+    if (!week) return;
+    await store.deleteWeek(week.id);
+    changed();
+  }
+
   // ── Días ──────────────────────────────────────────────────────
 
   async function getDay(date: ISODate): Promise<DayActivity[]> {
@@ -409,6 +423,7 @@ export function createRepository(store: Store, today: () => ISODate = () => loca
     ensureWeek,
     getWeek: (weekStart: ISODate) => store.getWeek(weekStart),
     planWeek,
+    deleteWeek,
     // días
     getDay,
     getRange,
