@@ -21,9 +21,9 @@ Pasos en orden. Lo hecho está tachado; lo descartado se queda como histórico.
 - ~~App sin conexión (service worker)~~ (§10)
 - ~~Icono propio~~
 - ~~Tests SQL de los avisos (`npm run test:sql`)~~
+- ~~Segundo usuario dado de alta con su propia rutina~~ (§12)
 
 ### Pendiente
-- [ ] **Más usuarios** (§12)
 - [ ] **Sincronización con Google Calendar** (Fase 2; empezar con `/spec`)
 - [ ] **Panel `/admin`** para ti: estadísticas y compartir cosas con los usuarios (más adelante)
 
@@ -163,5 +163,7 @@ El registro está cerrado: cada usuario se crea a mano y tiene **sus propios dat
 1. [ ] **Authentication → Users → Add user → Create new user**: su email y una contraseña inicial; marca **Auto Confirm User**.
 2. [ ] Comprueba en **Table Editor → `settings`** que hay una fila nueva con su `user_id`.
 3. [ ] Pásale la URL y la contraseña por un canal privado. En su iPhone: Safari → Añadir a pantalla de inicio → entrar → Ajustes → «Activar avisos en este dispositivo».
+
+**Rutina propia desde el principio** (en vez de la de ejemplo): crear el usuario, sustituir sus filas de `template_activities` por SQL antes de que entre (si ya entró y no ha marcado nada, borrar sus `weeks` para que la app las regenere).
 
 > La app aún no tiene «cambiar contraseña». Si la quiere cambiar: **Authentication → Users → ⋯ → Reset password** o se añade la opción en Ajustes.
