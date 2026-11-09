@@ -15,6 +15,7 @@ import { addDays, formatLongDate, fromMinutes, weekStartOf, weekdayOf } from '@/
 import { nowState } from '@/domain/timeline';
 import { useNow } from '@/hooks/useNow';
 import { useRepoQuery } from '@/hooks/useRepoQuery';
+import { OfflineBanner } from '@/components/OfflineBanner';
 import { colors, fonts, radius, spacing } from '@/theme';
 
 export default function HoyScreen() {
@@ -82,6 +83,7 @@ export default function HoyScreen() {
         </View>
 
         {acts.error ? <Text style={styles.error}>{acts.error}</Text> : null}
+        <OfflineBanner />
 
         {isSunday && nextWeek.data === null && !nextWeek.loading ? (
           <Pressable style={styles.banner} onPress={() => router.push('/planificar')}>

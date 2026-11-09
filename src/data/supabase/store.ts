@@ -102,6 +102,20 @@ export function createSupabaseStore(sb: SupabaseClient): Store {
       check(await sb.from('day_activities').delete().in('id', ids));
     },
 
+    async applyDayChanges(ch) {
+      if (!ch.delete.length && !ch.update.length && !ch.insert.length) return [];
+      const res = await sb.rpc('apply_day_changes', { p_delete: ch.delete, p_update: ch.update, p_insert: ch.insert });
+      if (res.error && (res.error.code === 'PGRST202' || /apply_day_changes/.test(res.error.message))) {
+        // La función aún no existe (falta ejecutar 0002_apply_day_changes.sql): pasos sueltos
+        if (ch.delete.length) check(await sb.from('day_activities').delete().in('id', ch.delete));
+        for (const u of ch.update) {
+          check(await sb.from('day_activities').update({ start_time: u.start_time, end_time: u.end_time }).eq('id', u.id));
+        }
+        return this.insertDayActivities(ch.insert);
+      }
+      return ((check(res) ?? []) as Row[]).map(withTimes) as unknown as DayActivity[];
+    },
+
     async getSettings() {
       const row = check(await sb.from('settings').select('*').maybeSingle()) as Settings | null;
       if (row) return { ...row, planning_reminder_time: normalizeTime(row.planning_reminder_time) };

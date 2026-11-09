@@ -17,6 +17,7 @@ import { compareDates, formatLongDate } from '@/domain/time';
 import { useCategories } from '@/hooks/useCategories';
 import { useNow } from '@/hooks/useNow';
 import { useRepoQuery } from '@/hooks/useRepoQuery';
+import { OfflineBanner } from '@/components/OfflineBanner';
 import { colors, fonts, radius, spacing } from '@/theme';
 
 export default function DiaScreen() {
@@ -69,6 +70,7 @@ export default function DiaScreen() {
         </View>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
+        <OfflineBanner />
 
         {q.loading && !q.data ? (
           <ActivityIndicator color={colors.accent} />

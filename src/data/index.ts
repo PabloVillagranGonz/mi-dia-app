@@ -2,6 +2,7 @@
 
 import { supabase } from '@/lib/supabase';
 import { withReadCache } from './cache';
+export { isOffline, onOfflineChange } from './cache';
 import { createMockStore } from './mock/store';
 import { createRepository } from './repository';
 import { createSupabaseStore } from './supabase/store';

@@ -96,6 +96,18 @@ export function createMockStore(): Store {
       db.activities = db.activities.filter((a) => !ids.includes(a.id));
     },
 
+    async applyDayChanges(ch) {
+      db.activities = db.activities
+        .filter((a) => !ch.delete.includes(a.id))
+        .map((a) => {
+          const u = ch.update.find((x) => x.id === a.id);
+          return u ? { ...a, start_time: u.start_time, end_time: u.end_time } : a;
+        });
+      const created = ch.insert.map((r) => ({ ...r, id: uuid(), user_id: MOCK_USER_ID }));
+      db.activities.push(...created);
+      return clone(created);
+    },
+
     async getSettings() {
       return clone(db.settings);
     },

@@ -13,7 +13,7 @@ Este documento junta todas las decisiones tomadas. La interfaz sale de Emergent 
 | Backend | **Supabase** (Postgres + Auth), usado directamente desde la app con `@supabase/supabase-js`. Sin servidor propio. |
 | Auth | **Email + contraseña** (usuario creado a mano en Supabase, registro cerrado). Sin magic link ni OTP: el correo por defecto de Supabase solo manda enlaces y los deep links en Expo Go dan problemas. Sesión persistida en AsyncStorage → login una sola vez. |
 | Notificaciones | `expo-notifications`, solo **locales** (funcionan en Expo Go). |
-| Instalación | **Expo Go + EAS Update**. Si pasa a uso diario serio → cuenta Apple Developer (99 €/año) + TestFlight; el código no cambia. |
+| Instalación | **Expo Go** con el Mac sirviendo la app (`npx expo start`). ⚠️ En la SDK 58 Expo Go **no abre updates de EAS en iOS** (solo Android): para usarla sin el Mac hace falta una build propia (ver `docs/puesta-en-marcha.md` §8). |
 | Zona horaria | `Europe/Madrid`. Formato 24 h. Semana de **lunes a domingo**. Todo el texto en español. |
 
 **Aviso Expo Go:** solo soporta la SDK más reciente. Cuando Expo publique una SDK nueva y Expo Go se actualice, habrá que subir el proyecto de versión para que siga abriendo.

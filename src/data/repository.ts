@@ -17,7 +17,7 @@ import {
 } from '@/domain/week';
 import { uuid } from '@/lib/uuid';
 import { UserError } from './errors';
-import type { NewCategory, SettingsPatch, Store } from './store';
+import type { DayChanges, NewCategory, SettingsPatch, Store } from './store';
 import type {
   ActivityKind,
   Category,
@@ -105,8 +105,11 @@ export function createRepository(store: Store, today: () => ISODate = () => loca
       ),
     );
 
-    await store.deleteDayActivities(current.filter((a) => a.origin !== 'event').map((a) => a.id));
-    await store.insertDayActivities(trimmed.map((d) => ({ ...d, week_id: week.id })));
+    await store.applyDayChanges({
+      delete: current.filter((a) => a.origin !== 'event').map((a) => a.id),
+      update: [],
+      insert: trimmed.map((d) => ({ ...d, week_id: week.id })),
+    });
     await store.updateWeek(week.id, { source: mode });
     changed();
   }
@@ -230,16 +233,19 @@ export function createRepository(store: Store, today: () => ISODate = () => loca
     });
 
     const group = pieces.length > 1 ? uuid() : null;
+    const changes: DayChanges = { delete: [], update: [], insert: [] };
     for (const { piece, plan } of plans) {
       const weekId = await weekIdFor(piece.date);
-      await store.deleteDayActivities(plan.toDelete);
-      for (const u of plan.toUpdate) await store.updateDayActivity(u.id, { start_time: u.start_time, end_time: u.end_time });
-      const rest = plan.toInsert.map((p) => {
+      changes.delete.push(...plan.toDelete);
+      changes.update.push(...plan.toUpdate);
+      for (const p of plan.toInsert) {
         const { user_id: _u, ...draft } = p as unknown as DayActivity;
-        return { ...draft, week_id: weekId };
-      });
-      await store.insertDayActivities([...rest, { ...draftOf(input, piece.date, piece, 'event', group), week_id: weekId }]);
+        changes.insert.push({ ...draft, week_id: weekId });
+      }
+      changes.insert.push({ ...draftOf(input, piece.date, piece, 'event', group), week_id: weekId });
     }
+    // Todo en una transacción: si falla, el día no queda a medias
+    await store.applyDayChanges(changes);
     changed();
   }
 
@@ -302,8 +308,7 @@ export function createRepository(store: Store, today: () => ISODate = () => loca
     const [templates, day] = await Promise.all([store.listTemplates(), store.listDayActivities(date, date)]);
     const plan = planApplyTemplateForDates(day, templates, [date]);
     const weekId = await weekIdFor(date);
-    await store.deleteDayActivities(plan.toDelete);
-    await store.insertDayActivities(plan.toInsert.map((d) => ({ ...d, week_id: weekId })));
+    await store.applyDayChanges({ delete: plan.toDelete, update: [], insert: plan.toInsert.map((d) => ({ ...d, week_id: weekId })) });
     changed();
   }
 
@@ -382,10 +387,13 @@ export function createRepository(store: Store, today: () => ISODate = () => loca
       store.listDayActivities(dates[0], dates[dates.length - 1]),
     ]);
     const plan = planApplyTemplateForDates(acts, templates, dates);
-    await store.deleteDayActivities(plan.toDelete);
     const weekIds = new Map<string, string>();
     for (const d of new Set(plan.toInsert.map((x) => weekStartOf(x.date)))) weekIds.set(d, (await ensureWeek(d)).id);
-    await store.insertDayActivities(plan.toInsert.map((d) => ({ ...d, week_id: weekIds.get(weekStartOf(d.date))! })));
+    await store.applyDayChanges({
+      delete: plan.toDelete,
+      update: [],
+      insert: plan.toInsert.map((d) => ({ ...d, week_id: weekIds.get(weekStartOf(d.date))! })),
+    });
     changed();
   }
 

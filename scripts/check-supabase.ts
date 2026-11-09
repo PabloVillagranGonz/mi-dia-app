@@ -97,7 +97,12 @@ async function main() {
   const todays = acts.filter((a) => a.date === today);
   ok(`Hoy (${today}): ${todays.length} actividades`);
 
-  console.log('\n4. Seguridad (RLS)');
+  console.log('\n4. Cambios en una sola transacción (0002_apply_day_changes.sql)');
+  const rpc = await sb.rpc('apply_day_changes', { p_delete: [], p_update: [], p_insert: [] });
+  if (!rpc.error) ok('Función apply_day_changes disponible');
+  else (problems++, fail(`Falta la función apply_day_changes: ejecuta supabase/migrations/0002_apply_day_changes.sql (${rpc.error.message})`));
+
+  console.log('\n5. Seguridad (RLS)');
   const anon = createClient(url, key, { auth: { persistSession: false } });
   const { data: leaked } = await anon.from('day_activities').select('id').limit(1);
   if (!leaked?.length) ok('Sin sesión no se ve ningún dato');

@@ -7,14 +7,39 @@ import type { Store } from './store';
 
 const PREFIX = 'cache:v1:';
 
+// ── Estado «sin conexión»: true mientras se esté mostrando lo guardado ──
+let offline = false;
+const offlineListeners = new Set<(v: boolean) => void>();
+
+function setOffline(v: boolean) {
+  if (offline === v) return;
+  offline = v;
+  offlineListeners.forEach((l) => l(v));
+}
+
+export function isOffline(): boolean {
+  return offline;
+}
+
+export function onOfflineChange(l: (v: boolean) => void): () => void {
+  offlineListeners.add(l);
+  return () => {
+    offlineListeners.delete(l);
+  };
+}
+
 async function cached<T>(key: string, load: () => Promise<T>): Promise<T> {
   try {
     const value = await load();
+    setOffline(false);
     AsyncStorage.setItem(PREFIX + key, JSON.stringify(value)).catch(() => {});
     return value;
   } catch (e) {
     const raw = await AsyncStorage.getItem(PREFIX + key).catch(() => null);
-    if (raw != null) return JSON.parse(raw) as T;
+    if (raw != null) {
+      setOffline(true);
+      return JSON.parse(raw) as T;
+    }
     throw e;
   }
 }

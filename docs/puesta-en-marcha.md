@@ -101,13 +101,16 @@ No requieren nada en Supabase ni cuenta de Apple: se programan en el propio iPho
 
 ---
 
-## 8. Más adelante: EAS Update
+## 8. Usarla sin el Mac (app instalada)
 
-Para usar la app sin tener el Mac encendido con `expo start`:
+> En la SDK 58, Expo Go **solo abre updates de EAS en Android**. En iPhone, para usar la app sin `npx expo start` hace falta instalar una build propia de «Mi Día» (con su nombre e icono). Opciones:
 
-1. `npm i -g eas-cli` → `eas login` (cuenta gratuita de Expo).
-2. `eas update:configure`.
-3. Cada vez que quieras publicar: `eas update --branch main --message "lo que sea"`.
-4. En Expo Go, la app aparece en tu perfil y carga la última versión publicada.
+| Opción | Coste | Cómo | Pega |
+|---|---|---|---|
+| **Apple Developer + EAS Build** | 99 €/año | Build en la nube de Expo (sin Xcode) → instalación directa (*internal distribution*) o TestFlight. Después, cambios por EAS Update sin reinstalar. | El coste. |
+| **Xcode con Apple ID gratis** | 0 € | Compilar en el Mac con Xcode e instalar por cable en el iPhone. | Caduca a los **7 días**: hay que reinstalar desde el Mac cada semana. |
+| **Seguir con Expo Go** | 0 € | `npx expo start --tunnel` | El Mac tiene que estar encendido con el servidor. |
 
-Lo dejaremos montado cuando la app esté estable.
+## 9. Migraciones pendientes de Supabase
+
+- [ ] `supabase/migrations/0002_apply_day_changes.sql` → SQL Editor → Run. Hace que añadir un evento, restaurar un día o aplicar la rutina se guarden en una sola transacción. Comprobar con `npm run check:supabase`.

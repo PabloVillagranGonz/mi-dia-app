@@ -24,6 +24,7 @@ import { progressOf } from '@/domain/progress';
 import { addDays, compareDates, formatShortDate, weekDates, weekStartOf } from '@/domain/time';
 import { useCategories } from '@/hooks/useCategories';
 import { useNow } from '@/hooks/useNow';
+import { OfflineBanner } from '@/components/OfflineBanner';
 import { colors, fonts, radius, spacing } from '@/theme';
 
 interface WeekData {
@@ -171,6 +172,7 @@ export default function SemanaScreen() {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content} {...pan.panHandlers}>
         <Text style={styles.title}>Semana</Text>
+        <OfflineBanner />
 
         <View style={styles.nav}>
           <Pressable hitSlop={12} onPress={() => go(-1)} style={({ pressed }) => [styles.arrow, pressed && styles.arrowPressed]}>

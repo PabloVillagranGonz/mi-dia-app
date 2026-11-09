@@ -8,6 +8,12 @@ export type NewCategory = Omit<Category, 'id' | 'user_id'>;
 export type NewTemplate = Omit<TemplateActivity, 'id' | 'user_id'>;
 export type NewDayActivity = DayActivityDraft & { week_id: string };
 
+export interface DayChanges {
+  delete: string[];
+  update: Array<{ id: string; start_time: string; end_time: string }>;
+  insert: NewDayActivity[];
+}
+
 export type DayActivityPatch = Partial<Omit<DayActivity, 'id' | 'user_id'>>;
 export type TemplatePatch = Partial<Omit<TemplateActivity, 'id' | 'user_id'>>;
 export type SettingsPatch = Partial<Omit<Settings, 'user_id'>>;
@@ -36,6 +42,8 @@ export interface Store {
   insertDayActivities(rows: NewDayActivity[]): Promise<DayActivity[]>;
   updateDayActivity(id: string, patch: DayActivityPatch): Promise<void>;
   deleteDayActivities(ids: string[]): Promise<void>;
+  /** Borra, recorta e inserta en una sola transacción (Supabase: función apply_day_changes). */
+  applyDayChanges(changes: DayChanges): Promise<DayActivity[]>;
 
   getSettings(): Promise<Settings>;
   updateSettings(patch: SettingsPatch): Promise<void>;
