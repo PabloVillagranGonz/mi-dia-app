@@ -115,7 +115,7 @@ No requieren nada en Supabase ni cuenta de Apple: se programan en el propio iPho
 
 ## 9. Migraciones pendientes de Supabase
 
-- [ ] `0003_web_push.sql` + función `push` + `0004_push_cron.sql` (ver sección 11).
+- [x] `0003_web_push.sql` + función `push` + `0004_push_cron.sql` (ver sección 11).
 
 - [x] `supabase/migrations/0002_apply_day_changes.sql` → SQL Editor → Run. Hace que añadir un evento, restaurar un día o aplicar la rutina se guarden en una sola transacción. Comprobar con `npm run check:supabase`.
 
