@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mi Día · Privacidad</title>
+    <meta name="theme-color" content="#111216" />
+    <link rel="icon" href="/favicon.ico" />
+    <style>
+      :root { color-scheme: dark; }
+      body { margin: 0; background: #111216; color: #E9EAEE; font: 16px/1.6 -apple-system, system-ui, sans-serif; }
+      main { max-width: 680px; margin: 0 auto; padding: 32px 16px 64px; }
+      h1 { font-size: 28px; margin: 0 0 4px; }
+      h2 { font-size: 18px; margin: 28px 0 8px; }
+      p, li { color: #C4C6CF; }
+      a { color: #D9603B; }
+      small { color: #8A8D99; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Mi Día · Política de privacidad</h1>
+      <small>Última actualización: 9 de noviembre de 2026</small>
+
+      <p>Mi Día es una app personal de rutina diaria para un grupo reducido de usuarios invitados. No tiene publicidad ni se venden datos.</p>
+
+      <h2>Qué datos guarda</h2>
+      <ul>
+        <li>Tu email y la contraseña de acceso (gestionados por Supabase Auth).</li>
+        <li>Tu rutina, tus actividades, notas y ajustes.</li>
+        <li>Los datos de los dispositivos en los que activas los avisos (para poder enviarlos).</li>
+      </ul>
+
+      <h2>Google Calendar</h2>
+      <p>Si conectas tu cuenta de Google, Mi Día pide acceso de <strong>solo lectura</strong> a tus calendarios (<code>calendar.readonly</code>) y solo usa los eventos de los calendarios que tú eliges, de la semana actual y la siguiente, para mostrarlos en tu día. Mi Día nunca crea, modifica ni borra nada en tu Google Calendar.</p>
+      <p>Se guarda el token de acceso de Google y una copia de esos eventos únicamente en el servidor, sin compartirlos con nadie. Al pulsar «Desconectar» en Ajustes se revoca el acceso en Google y se borran el token y los eventos copiados. También puedes revocarlo en <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>.</p>
+      <p>El uso que hace Mi Día de la información recibida de las APIs de Google cumple la <a href="https://developers.google.com/terms/api-services-user-data-policy">Política de Datos del Usuario de los Servicios de las APIs de Google</a>, incluidos los requisitos de uso limitado.</p>
+
+      <h2>Dónde se guarda</h2>
+      <p>En Supabase (Unión Europea) con acceso restringido por usuario. La web se sirve desde Vercel.</p>
+
+      <h2>Borrar tus datos</h2>
+      <p>Pídeselo al administrador que te invitó (o al correo de asistencia que aparece en la pantalla de permisos de Google) y se borrará tu cuenta con todos sus datos.</p>
+
+      <p><a href="/">← Volver a Mi Día</a></p>
+    </main>
+  </body>
+</html>

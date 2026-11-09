@@ -3,6 +3,10 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
+      "source": "/api/gcal/:path*",
+      "destination": "https://bnqxmgtpqwhaztvpneyx.supabase.co/functions/v1/gcal-oauth/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
