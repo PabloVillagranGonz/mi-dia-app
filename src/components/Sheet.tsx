@@ -8,11 +8,13 @@ import { colors, fonts, radius, spacing } from '@/theme';
 /** Hoja inferior genérica (captura 02-editar-actividad). */
 export function Sheet({ visible, title, onClose, children }: { visible: boolean; title: string; onClose: () => void; children: ReactNode }) {
   const insets = useSafeAreaInsets();
+  // En la web el Modal se pinta fuera de #root, así que el margen del indicador de inicio se pone aquí con CSS.
+  const bottom = Platform.OS === 'web' ? (`calc(env(safe-area-inset-bottom) + ${spacing.lg}px)` as unknown as number) : insets.bottom + spacing.lg;
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose} />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.wrap} pointerEvents="box-none">
-        <View style={[styles.sheet, { paddingBottom: insets.bottom + spacing.lg }]}>
+        <View style={[styles.sheet, { paddingBottom: bottom }]}>
           <View style={styles.handle} />
           <View style={styles.header}>
             <Text style={styles.title}>{title}</Text>

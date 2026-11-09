@@ -13,6 +13,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
 
+import { WebSafeArea } from '@/components/WebSafeArea';
 import { useEnsureCurrentWeek } from '@/hooks/useEnsureCurrentWeek';
 import { useSession } from '@/hooks/useSession';
 import { useNotifications } from '@/notifications';
@@ -37,7 +38,7 @@ export default function RootLayout() {
   }
 
   return (
-    <>
+    <WebSafeArea>
       <StatusBar style="light" />
       <Stack
         screenOptions={{
@@ -55,6 +56,6 @@ export default function RootLayout() {
           <Stack.Screen name="login" />
         </Stack.Protected>
       </Stack>
-    </>
+    </WebSafeArea>
   );
 }

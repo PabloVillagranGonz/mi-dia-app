@@ -11,9 +11,13 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.json" />
     <style>
-      html, body, #root { height: 100%; background-color: #111216; }
+      html, body { height: 100%; background-color: #111216; }
       body { margin: 0; overflow: hidden; overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
-      #root { display: flex; }
+      /* Ocupa toda la pantalla y deja libres el notch / isla dinámica y el indicador de inicio */
+      #root {
+        display: flex; position: fixed; inset: 0; box-sizing: border-box; background-color: #111216;
+        padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+      }
       /* Sin barras de scroll visibles (como en la app nativa) */
       * { scrollbar-width: none; }
       *::-webkit-scrollbar { display: none; }
