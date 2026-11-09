@@ -47,7 +47,8 @@
     "check:supabase": "tsx scripts/check-supabase.ts",
     "test:sql": "tsx scripts/test-sql.ts",
     "build:functions": "node scripts/build-functions.mjs",
-    "pretest": "node scripts/check-functions-bundle.mjs"
+    "pretest": "node scripts/check-functions-bundle.mjs",
+    "web": "expo start --web"
   },
   "private": true,
   "jest": {
