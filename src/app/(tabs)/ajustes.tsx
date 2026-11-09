@@ -122,17 +122,6 @@ export default function AjustesScreen() {
           <Ionicons name="chevron-forward" size={18} color={colors.textFaint} />
         </Pressable>
 
-        {flags.is_admin ? (
-          <>
-            <Text style={styles.section}>ADMINISTRACIÓN</Text>
-            <Pressable style={[styles.card, styles.link]} onPress={() => router.push('/admin')}>
-              <Ionicons name="people-outline" size={20} color={colors.textMuted} />
-              <Text style={styles.linkText}>Usuarios y estadísticas</Text>
-              <Ionicons name="chevron-forward" size={18} color={colors.textFaint} />
-            </Pressable>
-          </>
-        ) : null}
-
         <Text style={styles.section}>CUENTA</Text>
         <View style={styles.card}>
           <Text style={styles.email}>{session?.email ?? '—'}</Text>

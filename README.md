@@ -40,7 +40,7 @@
 | 🔔 **Avisos** | Notificación al empezar cada actividad: «Hasta las 12:30 · Siguiente: Comida». En la web, Web Push enviado desde el servidor, también con la app cerrada. |
 | ✅ **Hecho y notas** | Marca las tareas de hoy y añade notas. Las actividades «fijas» (dormir, comer) no cuentan para el progreso. |
 | 📴 **Sin conexión** | La app y la última lectura de hoy y de la semana se guardan en el dispositivo. |
-| 🛠️ **Administración** | Panel para el administrador: alta de usuarios sin pasar por Supabase, rachas, progreso semanal y tiempo por categoría, contraseñas y acceso a Google. |
+| 🛠️ **Consola de administración** | Una cuenta separada con su propia consola (sidebar en escritorio, menú en el móvil): resumen de uso, alta y gestión de usuarios con sus estadísticas, demo, Google Calendar y estado del sistema. |
 
 Todo en español, formato 24 h, semanas de lunes a domingo y hora de `Europe/Madrid`, independientemente de la zona del dispositivo.
 
@@ -65,7 +65,7 @@ flowchart LR
     OAuth["Edge Function<br/>gcal-oauth"]
     Admin["Edge Function<br/>admin"]
   end
-  UI -->|"solo admins"| Admin
+  Consola["Consola /admin"] -->|"solo admins"| Admin
   Cron --> Admin
   Admin -->|"auth.admin · userStats()"| DB
 

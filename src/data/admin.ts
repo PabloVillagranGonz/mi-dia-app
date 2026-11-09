@@ -18,6 +18,48 @@ export interface DemoStatus {
   users: number;
 }
 
+export interface AdminOverview {
+  week_start: string;
+  users: number;
+  active_7d: number;
+  disabled: number;
+  devices: number;
+  recent: { id: string; email: string; created_at: string }[];
+  tasks: { done: number; total: number };
+  ranking: { id: string; email: string; done: number; total: number }[];
+  demo: { email: string; last_sign_in_at: string | null } | null;
+}
+
+export interface AdminGoogleUser {
+  id: string;
+  email: string;
+  allowed: boolean;
+  google_email: string | null;
+  connected_at: string | null;
+  calendars: string[];
+  events: number;
+  channel_expires_at: string | null;
+}
+
+export interface CronJobStatus {
+  jobname: string;
+  schedule: string;
+  active: boolean;
+  last_start: string | null;
+  last_status: string | null;
+  last_message: string | null;
+  failures_24h: number;
+  runs_24h: number;
+}
+
+export interface SystemStatus {
+  jobs: CronJobStatus[];
+  http: { total: number; errors: number; last_error: { at: string; status: number | null; message: string } | null };
+  push_sent_today: number;
+  push_devices: number;
+  checked_at: string;
+}
+
 async function call<T>(path: string, method: 'GET' | 'POST', body?: unknown): Promise<T> {
   if (!supabase) throw new UserError('Con datos de prueba no hay administración.');
   const { data, error } = await supabase.functions.invoke(`admin/${path}`, { method, body: method === 'POST' ? (body ?? {}) : undefined });
@@ -37,6 +79,9 @@ export const setDisabled = (id: string, disabled: boolean) => call('user/disable
 export const deleteUser = (id: string) => call('user/delete', 'POST', { id });
 export const setGoogle = (id: string, allowed: boolean) => call('user/google', 'POST', { id, allowed });
 export const userStats = (id: string, weeks = 8) => call<AdminStats>(`user/stats?id=${id}&weeks=${weeks}`, 'GET');
+export const overview = () => call<AdminOverview>('overview', 'GET');
+export const googleUsers = () => call<{ users: AdminGoogleUser[] }>('google', 'GET').then((r) => r.users);
+export const system = () => call<SystemStatus>('system', 'GET');
 export const demoStatus = () => call<DemoStatus>('demo', 'GET');
 export const resetDemo = () => call<{ reset: number; email: string }>('demo-reset', 'POST');
 

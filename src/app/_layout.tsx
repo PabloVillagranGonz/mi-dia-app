@@ -15,6 +15,7 @@ import { View } from 'react-native';
 
 import { WebSafeArea } from '@/components/WebSafeArea';
 import { useEnsureCurrentWeek } from '@/hooks/useEnsureCurrentWeek';
+import { useMyFlagsState } from '@/hooks/useMyFlags';
 import { useRemoteChanges } from '@/hooks/useRemoteChanges';
 import { useSession } from '@/hooks/useSession';
 import { useNotifications } from '@/notifications';
@@ -31,11 +32,15 @@ export default function RootLayout() {
   });
   const session = useSession();
   const loggedIn = !!session;
-  useEnsureCurrentWeek(loggedIn);
-  useRemoteChanges(loggedIn);
-  useNotifications(loggedIn && fontsLoaded);
+  // La cuenta de administración solo ve la consola (/admin); el resto, la app
+  const { flags, loaded } = useMyFlagsState();
+  const isAdmin = loggedIn && flags.is_admin;
+  const appUser = loggedIn && loaded && !isAdmin;
+  useEnsureCurrentWeek(appUser);
+  useRemoteChanges(appUser);
+  useNotifications(appUser && fontsLoaded);
 
-  if (!fontsLoaded || session === undefined) {
+  if (!fontsLoaded || session === undefined || (loggedIn && !loaded)) {
     return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
   }
 
@@ -48,13 +53,14 @@ export default function RootLayout() {
           contentStyle: { backgroundColor: colors.bg },
         }}
       >
-        <Stack.Protected guard={loggedIn}>
+        <Stack.Protected guard={appUser}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="planificar" options={{ presentation: 'modal' }} />
           <Stack.Screen name="categorias" />
           <Stack.Screen name="dia/[date]" />
-          <Stack.Screen name="admin/index" />
-          <Stack.Screen name="admin/[id]" />
+        </Stack.Protected>
+        <Stack.Protected guard={isAdmin}>
+          <Stack.Screen name="admin" />
         </Stack.Protected>
         <Stack.Protected guard={!loggedIn}>
           <Stack.Screen name="login" />

@@ -10,12 +10,12 @@ Cómo está montado Mi Día, cómo se vuelve a montar desde cero y cómo se comp
 
 | Pieza | Estado | Detalle |
 |---|---|---|
-| Base de datos | ✅ | Migraciones `0001` → `0009` aplicadas · RLS en todas las tablas |
+| Base de datos | ✅ | Migraciones `0001` → `0010` aplicadas · RLS en todas las tablas |
 | Auth | ✅ | Email + contraseña · **registro cerrado** · altas desde `/admin` |
 | App web (PWA) | ✅ | Vercel publica cada push a `main` · instalada en el iPhone · funciona sin conexión |
 | Avisos Web Push | ✅ | Función `push` + cron `mi-dia-push` cada minuto · probado en el iPhone |
 | Google Calendar | ✅ | Funciones `gcal-oauth`, `gcal-sync`, `gcal-webhook` + cron `mi-dia-gcal-sync` cada 15 min · probado con Running |
-| Administración | ✅ | Función `admin` · Ajustes → Administración (solo admins): usuarios, estadísticas, Google |
+| Administración | ✅ | Consola en `/admin` para la cuenta de administración: Resumen, Usuarios, Demo, Google Calendar, Sistema |
 | Demo pública | ✅ | `demo@example.com` · restablecida cada noche (cron `mi-dia-demo-reset`) |
 | Calidad | ✅ | `typecheck`, `lint`, 125 tests de Jest y 16 tests SQL en verde |
 
@@ -68,6 +68,7 @@ npx supabase db query --remote=bnqxmgtpqwhaztvpneyx --yes -f supabase/migrations
 | `0007_gcal_hidden.sql` | Ocultar calendarios en Ajustes |
 | `0008_admin.sql` | `user_flags` (admin, demo, acceso a Google; la app solo lee la suya) y `reset_user_data()` para la demo |
 | `0009_demo_cron.sql` | Cron `mi-dia-demo-reset` cada noche (04:00 UTC) → función `admin` |
+| `0010_admin_system.sql` | `admin_system_status()`: crons, errores de las funciones y avisos de hoy (sección Sistema) |
 
 > **0004, 0006 y 0009** leen el secreto de Vault. Antes de ejecutarlas por primera vez: `select vault.create_secret('<CRON_SECRET>', 'push_cron_secret');` en una consulta aparte (no en el archivo, que está en git).
 
@@ -95,15 +96,23 @@ npx supabase functions deploy <nombre> --remote=bnqxmgtpqwhaztvpneyx --no-verify
 
 El registro está **cerrado** (Authentication → Sign In / Providers → *Allow new users to sign up* desactivado). Cada usuario tiene sus propios datos (RLS).
 
-### Panel de administración
+### Consola de administración
 
-**Ajustes → Administración → Usuarios y estadísticas** (solo cuentas con `user_flags.is_admin`; ahora mismo, tú):
+Una **cuenta solo para administrar**, separada de la personal: al entrar va directa a la consola (`/admin`) y no ve la app de rutina. Las cuentas normales nunca ven la consola. Quién es admin lo decide `user_flags.is_admin`, y el servidor lo comprueba en cada llamada.
 
-- **Nuevo usuario:** email y contraseña inicial (se propone una aleatoria). Se le crea la rutina de ejemplo. Pásale la URL y la contraseña por un canal privado; en su iPhone: Safari → Añadir a pantalla de inicio → entrar → Ajustes → «Activar avisos en este dispositivo».
-- **Ficha de cada usuario:** racha actual y mejor racha (días con al menos la mitad de las tareas hechas), tareas hechas por semana (8 semanas) y tiempo por categoría.
-- **Acciones:** cambiar contraseña, dar o quitar Google Calendar (quitarlo desconecta su cuenta y restaura su rutina), desactivar (no puede entrar; se cierran sus sesiones) y borrar (con todos sus datos). No puedes desactivarte ni borrarte a ti mismo.
+En ordenador o tablet tiene un **sidebar** fijo; en el móvil, un menú ☰. Secciones:
 
-**Hacer admin a otra cuenta** (no hay botón, a propósito):
+| Sección | Qué hay |
+|---|---|
+| **Resumen** | Usuarios, activos esta semana, % de tareas hechas, dispositivos con avisos, progreso por usuario, altas recientes y uso de la demo |
+| **Usuarios** | Lista y **Nuevo usuario** (email y contraseña inicial, se propone una aleatoria; se le crea la rutina de ejemplo). Ficha de cada uno: racha, tareas por semana, tiempo por categoría; cambiar contraseña, dar o quitar Google, desactivar, borrar |
+| **Demo** | Estado de la cuenta pública y **Restablecer ahora** |
+| **Google Calendar** | Quién tiene acceso, quién está conectado, qué calendarios usa y si sus avisos al momento están vigentes |
+| **Sistema** | Cada cron (última ejecución, fallos en 24 h), errores de las funciones y avisos enviados hoy |
+
+Al dar de alta a alguien: pásale la URL y la contraseña por un canal privado; en su iPhone, Safari → Añadir a pantalla de inicio → entrar → Ajustes → «Activar avisos en este dispositivo».
+
+**Hacer admin a una cuenta** (no hay botón, a propósito; esa cuenta deja de ver la app de rutina):
 ```sql
 insert into public.user_flags (user_id, is_admin) select id, true from auth.users where email = '…'
 on conflict (user_id) do update set is_admin = true;

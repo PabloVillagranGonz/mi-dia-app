@@ -14,7 +14,7 @@ import { join } from 'node:path';
 import { zonedToInstant } from '../src/domain/clock';
 import { planActivityNotifications } from '../src/domain/notifications';
 
-const MIGRATIONS = ['0001_init.sql', '0002_apply_day_changes.sql', '0003_web_push.sql', '0005_google_calendar.sql', '0007_gcal_hidden.sql', '0008_admin.sql'];
+const MIGRATIONS = ['0001_init.sql', '0002_apply_day_changes.sql', '0003_web_push.sql', '0005_google_calendar.sql', '0007_gcal_hidden.sql', '0008_admin.sql', '0010_admin_system.sql'];
 const USER = '00000000-0000-0000-0000-00000000000a';
 const OTHER = '00000000-0000-0000-0000-00000000000b'; // sin dispositivo suscrito
 const WEEK = '00000000-0000-0000-0000-0000000000f1';
@@ -346,6 +346,15 @@ test('reset_user_data: solo con cuentas demo; deja la rutina de ejemplo y borra 
   assert.equal(s.rows[0].n, true, 'ajustes por defecto');
   // El otro usuario no se toca
   assert.ok(Number((await db.query<{ n: string }>(`select count(*) n from public.categories where user_id = $1`, [OTHER])).rows[0].n) > 0);
+});
+
+test('admin_system_status: solo la puede llamar el servidor', async () => {
+  const db = await setup();
+  const priv = await db.query<{ anon: boolean; auth: boolean; service: boolean }>(`
+    select has_function_privilege('anon', 'public.admin_system_status()', 'execute') as anon,
+           has_function_privilege('authenticated', 'public.admin_system_status()', 'execute') as auth,
+           has_function_privilege('service_role', 'public.admin_system_status()', 'execute') as service`);
+  assert.deepEqual(priv.rows[0], { anon: false, auth: false, service: true });
 });
 
 (async () => {

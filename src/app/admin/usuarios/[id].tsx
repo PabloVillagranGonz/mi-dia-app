@@ -1,10 +1,9 @@
-// Ficha de un usuario (administración): estadísticas y acciones.
+// Consola → Usuarios → ficha: estadísticas y acciones sobre una cuenta.
 
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AdminHeader, adminStyles, Badge } from '@/components/AdminUI';
 import { ErrorText, Input, Label, PrimaryButton, SwitchRow } from '@/components/form';
@@ -14,13 +13,11 @@ import { adminApi, errorMessage, type AdminUser } from '@/data';
 import type { AdminStats } from '@/data/admin';
 import { formatHours, formatSince } from '@/domain/format';
 import { formatShortDate } from '@/domain/time';
-import { useMyFlags } from '@/hooks/useMyFlags';
 import { Alert } from '@/lib/alert';
 import { colors, fonts, spacing } from '@/theme';
 
 export default function AdminUserScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const flags = useMyFlags();
   const [user, setUser] = useState<AdminUser | null>(null);
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -42,8 +39,8 @@ export default function AdminUserScreen() {
   );
 
   useEffect(() => {
-    if (flags.is_admin) load();
-  }, [flags.is_admin, load]);
+    load();
+  }, [load]);
 
   async function run(fn: () => Promise<unknown>, done: string) {
     setBusy(true);
@@ -58,14 +55,6 @@ export default function AdminUserScreen() {
     } finally {
       setBusy(false);
     }
-  }
-
-  if (!flags.is_admin) {
-    return (
-      <SafeAreaView style={adminStyles.safe} edges={['top']}>
-        <AdminHeader title="Usuario" />
-      </SafeAreaView>
-    );
   }
 
   const isMe = user?.is_admin ?? false;
@@ -103,7 +92,7 @@ export default function AdminUserScreen() {
             setBusy(true);
             try {
               await adminApi.deleteUser(user.id);
-              router.back();
+              router.replace('/admin/usuarios');
             } catch (e) {
               setError(errorMessage(e));
               setBusy(false);
@@ -131,16 +120,15 @@ export default function AdminUserScreen() {
   const totalMinutes = s?.categories.reduce((n, c) => n + c.minutes, 0) ?? 0;
 
   return (
-    <SafeAreaView style={adminStyles.safe} edges={['top']}>
-      <AdminHeader title="Usuario" />
+    <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={adminStyles.content}>
+        <AdminHeader title={user?.email ?? 'Usuario'} back="/admin/usuarios" />
         <ErrorText>{error}</ErrorText>
         {msg ? <Text style={adminStyles.ok}>{msg}</Text> : null}
         {!user && !error ? <ActivityIndicator color={colors.accent} /> : null}
 
         {user ? (
           <View style={adminStyles.card}>
-            <Text style={adminStyles.email}>{user.email}</Text>
             <Text style={adminStyles.hint}>
               Alta: {formatShortDate(user.created_at.slice(0, 10))} · Último acceso: {formatSince(user.last_sign_in_at)}
             </Text>
@@ -250,7 +238,7 @@ export default function AdminUserScreen() {
           if (user) run(() => adminApi.setPassword(user.id, password), `Contraseña cambiada: ${password} — pásasela por un canal privado.`);
         }}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 

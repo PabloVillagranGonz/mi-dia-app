@@ -8,6 +8,9 @@
 //   POST /user/delete    {id}                     → borrar usuario y todos sus datos
 //   POST /user/google    {id, allowed}            → dar o quitar Google Calendar
 //   GET  /user/stats?id=…&weeks=8                 → estadísticas
+//   GET  /overview                                → resumen: actividad de los usuarios esta semana
+//   GET  /google                                  → acceso y conexión a Google Calendar por usuario
+//   GET  /system                                  → crons, llamadas a funciones y avisos de hoy
 //   GET  /demo                                    → estado de la cuenta de demostración
 //   POST /demo-reset                              → crear o restablecer la demo (admin o cron)
 //
@@ -130,6 +133,80 @@ async function stats(id: string, weeks: number) {
   return { from, today, stats: domain.userStats(rows, today), categories: check(cats) };
 }
 
+// ── Resumen, Google y sistema ──────────────────────────────────
+const DAY = 86_400_000;
+
+async function overview() {
+  const users = await listUsers();
+  const people = users.filter((u) => !u.is_admin && !u.is_demo);
+  const today: string = domain.localNow().date;
+  const week: string = domain.weekStartOf(today);
+  const now = Date.now();
+
+  const { data } = await admin
+    .from('day_activities')
+    .select('user_id, kind, done')
+    .in('user_id', people.map((u) => u.id))
+    .gte('date', week)
+    .lte('date', today);
+  const perUser = new Map<string, { done: number; total: number }>();
+  for (const a of (data ?? []) as Array<{ user_id: string; kind: string; done: boolean }>) {
+    if (a.kind !== 'task') continue;
+    const p = perUser.get(a.user_id) ?? { done: 0, total: 0 };
+    p.total++;
+    if (a.done) p.done++;
+    perUser.set(a.user_id, p);
+  }
+  const totals = [...perUser.values()].reduce((t, p) => ({ done: t.done + p.done, total: t.total + p.total }), { done: 0, total: 0 });
+  const demo = users.find((u) => u.is_demo);
+
+  return {
+    week_start: week,
+    users: people.length,
+    active_7d: people.filter((u) => u.last_sign_in_at && now - new Date(u.last_sign_in_at).getTime() < 7 * DAY).length,
+    disabled: people.filter((u) => u.disabled).length,
+    devices: people.reduce((n, u) => n + u.devices, 0),
+    recent: people
+      .filter((u) => now - new Date(u.created_at).getTime() < 30 * DAY)
+      .map((u) => ({ id: u.id, email: u.email, created_at: u.created_at })),
+    tasks: totals,
+    ranking: people
+      .map((u) => ({ id: u.id, email: u.email, ...(perUser.get(u.id) ?? { done: 0, total: 0 }) }))
+      .sort((a, b) => (b.total ? b.done / b.total : -1) - (a.total ? a.done / a.total : -1)),
+    demo: demo ? { email: demo.email, last_sign_in_at: demo.last_sign_in_at } : null,
+  };
+}
+
+async function googleOverview() {
+  const users = (await listUsers()).filter((u) => !u.is_demo);
+  const [accounts, calendars, events] = await Promise.all([
+    admin.from('google_accounts').select('user_id, google_email, connected_at'),
+    admin.from('google_calendars').select('user_id, summary, enabled, channel_expires_at'),
+    admin.from('google_events').select('user_id'),
+  ]);
+  const accountOf = new Map((accounts.data ?? []).map((a) => [a.user_id, a]));
+  const eventsOf = new Map<string, number>();
+  for (const e of events.data ?? []) eventsOf.set(e.user_id, (eventsOf.get(e.user_id) ?? 0) + 1);
+
+  return users
+    .filter((u) => u.gcal_allowed || accountOf.has(u.id))
+    .map((u) => {
+      const cals = (calendars.data ?? []).filter((c) => c.user_id === u.id && c.enabled);
+      const expiries = cals.map((c) => c.channel_expires_at).filter(Boolean).sort();
+      return {
+        id: u.id,
+        email: u.email,
+        allowed: u.gcal_allowed,
+        google_email: accountOf.get(u.id)?.google_email ?? null,
+        connected_at: accountOf.get(u.id)?.connected_at ?? null,
+        calendars: cals.map((c) => c.summary),
+        events: eventsOf.get(u.id) ?? 0,
+        // El primero que caduca: si está en el pasado, ese calendario no avisa al momento
+        channel_expires_at: expiries[0] ?? null,
+      };
+    });
+}
+
 // ── Cuenta de demostración ─────────────────────────────────────
 function demoConfig() {
   const email = Deno.env.get('DEMO_EMAIL')?.trim().toLowerCase();
@@ -237,6 +314,15 @@ Deno.serve(async (req) => {
         const weeks = Math.min(26, Math.max(1, Number(url.searchParams.get('weeks') ?? 8) || 8));
         return json(await stats(u.id, weeks));
       }
+
+      case 'GET overview':
+        return json(await overview());
+
+      case 'GET google':
+        return json({ users: await googleOverview() });
+
+      case 'GET system':
+        return json(check(await admin.rpc('admin_system_status')));
 
       case 'GET demo': {
         const cfg = demoConfig();
