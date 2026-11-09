@@ -48,5 +48,5 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.sm,
   },
   title: { color: colors.text, fontFamily: fonts.display, fontSize: 24 },
-  content: { paddingHorizontal: spacing.xl, paddingTop: spacing.sm, gap: spacing.lg },
+  content: { paddingHorizontal: spacing.xl, paddingTop: spacing.sm, paddingBottom: spacing.md, gap: spacing.lg },
 });

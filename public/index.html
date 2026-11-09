@@ -14,6 +14,17 @@
       html, body, #root { height: 100%; background-color: #111216; }
       body { margin: 0; overflow: hidden; overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
       #root { display: flex; }
+      /* Sin barras de scroll visibles (como en la app nativa) */
+      * { scrollbar-width: none; }
+      *::-webkit-scrollbar { display: none; }
+      /* Sin selección de texto ni menú al mantener pulsado, salvo en campos */
+      body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+      input, textarea { -webkit-user-select: text; user-select: text; }
+      /* Campo de hora: texto centrado, sin el icono de reloj ni el estilo de Safari */
+      input[type="time"] { -webkit-appearance: none; appearance: none; display: flex; align-items: center; justify-content: center; }
+      input[type="time"]::-webkit-calendar-picker-indicator { display: none; }
+      input[type="time"]::-webkit-date-and-time-value { text-align: center; }
+      input[type="time"]::-webkit-datetime-edit { display: flex; justify-content: center; padding: 0; }
     </style>
   </head>
   <body>

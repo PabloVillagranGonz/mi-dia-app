@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
-import type { ColorValue } from 'react-native';
+import { Platform, type ColorValue } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors, fonts } from '@/theme';
 
@@ -13,13 +14,16 @@ const icon =
   );
 
 export default function TabsLayout() {
+  const insets = useSafeAreaInsets();
+  // En la web la altura por defecto (49) corta las etiquetas: se fija a mano, más la zona del indicador de inicio.
+  const webBar = Platform.OS === 'web' ? { height: 64 + insets.bottom, paddingTop: 4, paddingBottom: insets.bottom + 4 } : null;
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.accent,
         tabBarInactiveTintColor: colors.textMuted,
-        tabBarStyle: { backgroundColor: colors.bg, borderTopColor: colors.border },
+        tabBarStyle: { backgroundColor: colors.bg, borderTopColor: colors.border, ...webBar },
         tabBarLabelStyle: { fontFamily: fonts.medium, fontSize: 12 },
         sceneStyle: { backgroundColor: colors.bg },
       }}
